@@ -20,7 +20,7 @@ export const Navigator: React.FC<{}> = () => {
         items={[
           {
             key: "scanner",
-            label: "扫描",
+            label: "知识库",
           },
           {
             key: "searcher",

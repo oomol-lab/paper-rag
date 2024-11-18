@@ -1,9 +1,8 @@
 import React from "react";
-import styles from "./ScannerPage.module.less";
+import styles from "./Sources.module.less";
 
-import { Skeleton, Space, Input, Button, InputRef, Modal, Popover, Typography } from "antd";
+import { Space, Input, Button, InputRef, Modal, Popover, Typography } from "antd";
 import { EditTwoTone, DeleteTwoTone, PlusCircleTwoTone, WarningTwoTone } from "@ant-design/icons";
-import { val } from "value-enhancer";
 import { useVal } from "use-value-enhancer";
 import { ScannerStore, SourceStore } from "../store";
 
