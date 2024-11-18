@@ -1,15 +1,24 @@
 import React from "react";
+import cls from "classnames";
 import styles from "./App.module.less";
 import zhCN from "antd/locale/zh_CN";
 
 import { useNavigate, BrowserRouter, Routes, Route } from "react-router-dom";
 import { Button, Result, ConfigProvider } from "antd";
+import { Navigator } from "./Navigator";
 
 export const App: React.FC<{}> = () => {
   return (
     <ConfigProvider locale={zhCN}>
       <BrowserRouter>
-        <AppRoutes />
+        <div className={styles.app}>
+          <header className={cls(styles.panel, styles["navigator-panel"])}>
+            <Navigator />
+          </header>
+          <div className={cls(styles.panel, styles["main-panel"])}>
+            <AppRoutes />
+          </div>
+        </div>
       </BrowserRouter>
     </ConfigProvider>
   )
