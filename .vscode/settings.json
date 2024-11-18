@@ -6,11 +6,14 @@
   "cSpell.words": [
     "annot",
     "annots",
+    "antd",
     "chromadb",
     "Embeddable",
     "extratransference",
     "hnsw",
+    "jsonify",
     "lastrowid",
+    "melloware",
     "metadatas",
     "ndarray",
     "pdfplumber",
@@ -22,6 +25,7 @@
     "spacy",
     "termcolor",
     "tqdm",
+    "tsup",
     "uids",
     "venv"
   ]
