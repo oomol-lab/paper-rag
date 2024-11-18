@@ -39,7 +39,7 @@ def routes(app: Flask, sources: Sources):
     ])
 
   @app.route("/api/sources", methods=["PUT"])
-  def put_sources(name: str):
+  def put_sources():
     body = request.json
     if not isinstance(body, dict):
       raise ValueError("Invalid body")
@@ -59,12 +59,12 @@ def routes(app: Flask, sources: Sources):
     })
 
   @app.route("/api/sources", methods=["DELETE"])
-  def delete_sources(name: str):
+  def delete_sources():
     name = request.args.get("name", "")
     if name == "":
       raise ValueError("Invalid name")
     sources.remove(name)
-    return jsonify(None)
+    return jsonify(None), 204
 
   @app.errorhandler(404)
   def page_not_found(e):

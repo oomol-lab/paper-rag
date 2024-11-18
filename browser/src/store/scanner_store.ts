@@ -8,20 +8,23 @@ export type ScannerStore$ = {
   readonly addedSourceName: Val<string>;
   readonly addedSourcePath: Val<string>;
   readonly isAddedNameDuplicated: ReadonlyVal<boolean>;
+  readonly isSubmittingAddition: ReadonlyVal<boolean>;
   readonly canAdd: ReadonlyVal<boolean>;
 };
 
-class ScannerStore {
+export class ScannerStore {
   public readonly $: ScannerStore$;
 
   readonly #sources$: Val<SourceStore[]>;
   readonly #addedSourceName$: Val<string>;
   readonly #addedSourcePath$: Val<string>;
+  readonly #isSubmittingAddition$: Val<boolean>;
 
   private constructor(sources: { name: string, path: string }[]) {
     this.#sources$ = val(sources.map(({ name, path }) => new SourceStore(name, path, this.#onRemoveSource)));
     this.#addedSourceName$ = val("");
     this.#addedSourcePath$ = val("");
+    this.#isSubmittingAddition$ = val(false);
 
     const isAddedNameDuplicated$ = derive(
       this.#addedSourceName$,
@@ -47,6 +50,7 @@ class ScannerStore {
       addedSourceName: this.#addedSourceName$,
       addedSourcePath: this.#addedSourcePath$,
       isAddedNameDuplicated: isAddedNameDuplicated$,
+      isSubmittingAddition: derive(this.#isSubmittingAddition$),
       canAdd: canAdd$,
     };
   }
@@ -63,6 +67,7 @@ class ScannerStore {
   public addSource(): void {
     const name = standardize(this.#addedSourceName$.value);
     const path = standardize(this.#addedSourcePath$.value);
+    this.#isSubmittingAddition$.set(true);
     fetchJson("/api/sources", {
       method: "PUT",
       body: JSON.stringify({ name, path }),
@@ -75,17 +80,20 @@ class ScannerStore {
       ]);
     }).catch((error) => {
       message.error(error.message);
+    }).finally(() => {
+      this.#isSubmittingAddition$.set(false);
     });
   }
 }
 
-type SourceStore$ = {
+export type SourceStore$ = {
   readonly path: Val<string>;
   readonly modified: ReadonlyVal<boolean>;
+  readonly canSubmitPath: ReadonlyVal<boolean>;
   readonly isSubmitting: ReadonlyVal<boolean>;
 };
 
-class SourceStore {
+export class SourceStore {
   public readonly name: string;
   public readonly $: SourceStore$;
 
@@ -100,13 +108,22 @@ class SourceStore {
     this.#remotePath$ = val(path);
     this.#isSubmitting$ = val(false);
     this.#onRemoved = onRemoved;
+
+    const modified$ = combine(
+      [this.#path$, this.#remotePath$],
+      ([path, remotePath]) => path !== remotePath,
+    );
+    const canSubmitPath$ = combine(
+      [this.#path$, modified$],
+      ([path, modified]) => (
+        modified && standardize(path) !== ""
+      ),
+    );
     this.$ = {
       path: this.#path$,
       isSubmitting: derive(this.#isSubmitting$),
-      modified: combine(
-        [this.#path$, this.#remotePath$],
-        ([path, remotePath]) => path !== remotePath,
-      ),
+      modified: modified$,
+      canSubmitPath: canSubmitPath$,
     };
   }
 
@@ -117,7 +134,7 @@ class SourceStore {
       method: "PUT",
       body: JSON.stringify({
         name: this.name,
-        value: path,
+        path: path,
       }),
     }).then(() => {
       this.#path$.set(path);
@@ -141,7 +158,9 @@ class SourceStore {
       this.#onRemoved(this.name);
     }).catch((error) => {
       message.error(error.message);
-    });
+    }).finally(() => {
+      this.#isSubmitting$.set(false);
+    });;
   }
 }
 
