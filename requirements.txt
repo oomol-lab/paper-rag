@@ -1,0 +1,12 @@
+argparse==1.4.0
+tqdm==4.66.5
+termcolor==2.4.0
+
+spacy==3.8.2
+langid==1.1.6
+chromadb==0.5.18
+PyYAML==6.0.2
+pikepdf==9.2.1
+pdfplumber==0.11.4
+shapely==2.0.6
+sentence-transformers==3.0.1
