@@ -34,9 +34,8 @@ class ServiceScanJob:
     )
 
   # @return True if scan completed, False if scan interrupted
-  def start(self, sources: Optional[dict[str, str]] = None) -> bool:
-    if sources is not None:
-      self._scanner.commit_sources(sources)
+  def start(self, sources: dict[str, str]) -> bool:
+    self._scanner.commit_sources(sources)
 
     event_ids = self._scanner.scan()
     self._pool.start()
