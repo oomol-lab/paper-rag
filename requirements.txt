@@ -2,6 +2,8 @@ argparse==1.4.0
 tqdm==4.66.5
 termcolor==2.4.0
 
+flask==3.1.0
+pyyaml==6.0.2
 spacy==3.8.2
 langid==1.1.6
 chromadb==0.5.18
