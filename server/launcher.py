@@ -6,6 +6,7 @@ import webbrowser
 
 from flask import Flask
 from .routes import routes
+from .sources import Sources
 
 
 def launch():
@@ -16,7 +17,10 @@ def launch():
 
   print(f"Server is running on http://0.0.0.0:{port}")
   app = Flask(__name__)
-  routes(app)
+  app_db_path = os.path.join(__file__, "..", "..", "data", "app.sqlite3")
+  app_db_path = os.path.abspath(app_db_path)
+  sources = Sources(app_db_path)
+  routes(app, sources)
   app.run(host="0.0.0.0", port=port)
   thread.join()
 
@@ -31,4 +35,4 @@ def _load_port():
 
 def _launch_browser(port: int):
   time.sleep(0.85)
-  webbrowser.open(f"http://localhost:{port}")
+  webbrowser.open(f"http://localhost:{port}/scanner")
