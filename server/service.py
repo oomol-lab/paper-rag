@@ -1,7 +1,7 @@
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from typing import Generator
 from json import dumps
-from index_package import Service
+from index_package import Service, ServiceScanJob
 from .sources import Sources
 from .progress_events import ProgressEvents
 
@@ -14,6 +14,8 @@ class ServiceRef:
     self._lock: Lock = Lock()
     self._service: Service | None = None
     self._is_scanning: bool = False
+    self._scan_job: ServiceScanJob | None = None
+    self._scan_job_event: Event | None = None
     self._progress_events: ProgressEvents = ProgressEvents()
 
   @property
@@ -27,6 +29,11 @@ class ServiceRef:
   def sources(self) -> Sources:
     return self._sources
 
+  def interrupt_scanning(self):
+    scan_job = self._get_scan_job()
+    if scan_job is not None:
+      scan_job.interrupt()
+
   def gen_scanning_sse_lines(self) -> Generator[str, None, None]:
     for event in self._progress_events.fetch_events():
       yield f"data: {dumps(event, ensure_ascii=False)}\n\n"
@@ -37,6 +44,7 @@ class ServiceRef:
         return
       self._is_scanning = True
       self._service = None
+      self._scan_job_event = Event()
 
     try:
       Thread(target=self._scan).start()
@@ -55,20 +63,44 @@ class ServiceRef:
     scan_job = service.scan_job(
       progress_listeners=self._progress_events.listeners,
     )
-    try:
-      completed = scan_job.start({
-        name: path
-        for name, path in self._sources.items()
-      })
-    except Exception as e:
-      self._progress_events.fail(str(e))
-      raise e
-
-    if not completed:
-      self._progress_events.interrupt()
-      return
-
     with self._lock:
-      self._service = service
-      self._is_scanning = False
-    self._progress_events.complete()
+      self._scan_job = scan_job
+      if self._scan_job_event is not None:
+        self._scan_job_event.set()
+        self._scan_job_event = None
+
+    try:
+      try:
+        completed = scan_job.start({
+          name: path
+          for name, path in self._sources.items()
+        })
+      except Exception as e:
+        self._progress_events.fail(str(e))
+        raise e
+
+      if not completed:
+        self._progress_events.interrupt()
+        return
+
+      with self._lock:
+        self._service = service
+      self._progress_events.complete()
+
+    finally:
+      with self._lock:
+        self._is_scanning = False
+        self._scan_job = None
+
+  def _get_scan_job(self) -> ServiceScanJob | None:
+    event: Event
+    with self._lock:
+      if self._scan_job is not None:
+        return self._scan_job
+      if self._scan_job_event is None:
+        return None
+      event = self._scan_job_event
+
+    event.wait()
+    with self._lock:
+      return self._scan_job

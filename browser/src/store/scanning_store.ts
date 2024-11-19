@@ -31,6 +31,7 @@ export type ScanningStore$ = {
   readonly handlingFile: ReadonlyVal<HandingFile | null>;
   readonly completedFiles: ReadonlyVal<readonly string[]>;
   readonly error: ReadonlyVal<string | null>;
+  readonly isInterrupted: ReadonlyVal<boolean>;
   readonly isScanning: ReadonlyVal<boolean>;
 };
 
@@ -39,7 +40,6 @@ export enum ScanningPhase {
   Scanning,
   HandingFiles,
   Completed,
-  Error,
 }
 
 export type HandingFile = {
@@ -63,6 +63,7 @@ export class ScanningStore {
   readonly #handlingFile$: Val<HandingFile | null> = val<HandingFile | null>(null);
   readonly #completedFiles$: Val<readonly string[]> = val<readonly string[]>([]);
   readonly #error$: Val<string | null> = val<string | null>(null);
+  readonly #isInterrupted$: Val<boolean> = val(false);
 
   public constructor() {
     this.#fetcher = fetchJsonEvents<Event>("/api/scanning");
@@ -72,23 +73,34 @@ export class ScanningStore {
       handlingFile: derive(this.#handlingFile$),
       completedFiles: derive(this.#completedFiles$),
       error: derive(this.#error$),
-      isScanning: derive(this.#phase$, phase => {
-        switch (phase) {
-          case ScanningPhase.Ready:
-          case ScanningPhase.Completed:
-          case ScanningPhase.Error: {
+      isInterrupted: derive(this.#isInterrupted$),
+      isScanning: combine(
+        [this.#phase$, this.#error$, this.#isInterrupted$],
+        ([phase, error, isInterrupted]) => {
+          switch (phase) {
+            case ScanningPhase.Ready:
+            case ScanningPhase.Completed: {
+              return false;
+            }
+          }
+          if (error) {
             return false;
           }
-          default: {
-            return true;
+          if (isInterrupted) {
+            return false;
           }
-        }
-      }),
+          return true;
+        },
+      ),
     };
   }
 
   public async scan(): Promise<void> {
     await fetchJson("/api/scanning", { method: "POST" });
+  }
+
+  public async interrupt(): Promise<void> {
+    await fetchJson("/api/scanning", { method: "DELETE" });
   }
 
   public close(): void {
@@ -108,6 +120,7 @@ export class ScanningStore {
           this.#handlingFile$.set(null);
           this.#completedFiles$.set([]);
           this.#error$.set(null);
+          this.#isInterrupted$.set(false);
           break;
         }
         case "scanCompleted": {
@@ -152,8 +165,11 @@ export class ScanningStore {
           break;
         }
         case "failure": {
-          this.#phase$.set(ScanningPhase.Error);
           this.#error$.set(event.error);
+          break;
+        }
+        case "interrupted": {
+          this.#isInterrupted$.set(true);
           break;
         }
       }

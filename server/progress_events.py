@@ -11,7 +11,6 @@ class ProgressPhase(IntEnum):
   SCANNING = 1
   HANDING_FILES = 2
   COMPLETED = 3
-  FAILURE = 4
 
 @dataclass
 class HandingFile:
@@ -26,9 +25,10 @@ class ProgressEvents:
     self._scanned_count: int = 0
     self._handing_file: HandingFile | None = None
     self._error: str | None = None
+    self._is_interrupted: bool = False
     self._completed_files: list[str] = []
     self._fetcher_lock: Lock = Lock()
-    self._fetcher_queues: list[Queue[dict | None]] = []
+    self._fetcher_queues: list[Queue[dict]] = []
 
   @property
   def listeners(self) -> ProgressListeners:
@@ -46,6 +46,7 @@ class ProgressEvents:
         self._scanned_count = 0
         self._handing_file = None
         self._error = None
+        self._is_interrupted = False
         self._completed_files.clear()
       self._phase = ProgressPhase.SCANNING
 
@@ -72,13 +73,8 @@ class ProgressEvents:
           "path": path,
         })
       if self._phase == ProgressPhase.COMPLETED:
-        events.append({ "kind": "completed" })
+          events.append({ "kind": "completed" })
 
-      elif self._phase == ProgressPhase.FAILURE:
-        events.append({
-          "kind": "failure",
-          "error": self._error or "",
-        })
       elif self._phase == ProgressPhase.HANDING_FILES and \
            self._handing_file is not None:
         events.append({
@@ -99,6 +95,15 @@ class ProgressEvents:
             "index": index,
             "total": total,
           })
+
+      if self._error is not None:
+        events.append({
+          "kind": "failure",
+          "error": self._error or "",
+        })
+      elif self._is_interrupted:
+        events.append({ "kind": "interrupted" })
+
       return events
 
   def _on_after_scan(self, count: int):
@@ -163,13 +168,13 @@ class ProgressEvents:
     })
 
   def interrupt(self):
-    self._emit_event(None)
+    with self._status_lock:
+      self._is_interrupted = True
+
+    self._emit_event({ "kind": "interrupted" })
 
   def fail(self, error: str):
     with self._status_lock:
-      self._phase = ProgressPhase.FAILURE
-      self._completed_files.clear()
-      self._handing_file = None
       self._error = error
 
     self._emit_event({
@@ -178,7 +183,7 @@ class ProgressEvents:
     })
 
   def fetch_events(self) -> Generator[dict, None, None]:
-    queue: Queue[dict | None] = Queue()
+    queue: Queue[dict] = Queue()
     with self._fetcher_lock:
       init_events = self._init_events()
       self._fetcher_queues.append(queue)
@@ -188,18 +193,14 @@ class ProgressEvents:
       init_events.clear()
       while True:
         try:
-          event = queue.get(timeout=5.0)
-          if event is None:
-            yield { "kind": "interrupted" }
-            break
-          yield event
+          yield queue.get(timeout=5.0)
         except Empty:
           yield { "kind": "heartbeat"}
     finally:
       with self._fetcher_lock:
         self._fetcher_queues.remove(queue)
 
-  def _emit_event(self, event: dict | None) -> None:
+  def _emit_event(self, event: dict) -> None:
     with self._fetcher_lock:
       for queue in self._fetcher_queues:
         queue.put(event)

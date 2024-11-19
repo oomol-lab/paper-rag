@@ -2,7 +2,7 @@ import React from "react";
 import styles from "./ScannerPage.module.less";
 
 import { Skeleton, Result, Steps, List, Button, Divider, Progress, Typography } from "antd";
-import { ScanOutlined, ProfileTwoTone, SyncOutlined, FilePdfTwoTone } from "@ant-design/icons";
+import { ScanOutlined, ProfileTwoTone, SyncOutlined, FilePdfTwoTone, PauseOutlined } from "@ant-design/icons";
 import { val } from "value-enhancer";
 import { useVal } from "use-value-enhancer";
 import { ScannerStore, ScanningStore, ScanningPhase } from "../store";
@@ -53,6 +53,10 @@ const Scanner: React.FC<ScannerProps> = ({ store }) => {
     () => scanningStore.scan(),
     [scanningStore],
   );
+  const onClickInterrupt = React.useCallback(
+    () => scanningStore.interrupt(),
+    [scanningStore],
+  );
   return <>
     <Typography>
       <Title>扫描</Title>
@@ -71,6 +75,16 @@ const Scanner: React.FC<ScannerProps> = ({ store }) => {
       onClick={onClickScan} >
       扫  描
     </Button>
+    {isScanning && (
+      <Button
+        shape="round"
+        size="large"
+        className={styles["scan-button"]}
+        icon={<PauseOutlined />}
+        onClick={onClickInterrupt} >
+        中 断
+      </Button>
+    )}
   </>;
 }
 
@@ -91,6 +105,7 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
   const completedFiles = useVal(store.$.completedFiles);
   const handlingFile = useVal(store.$.handlingFile);
   const error = useVal(store.$.error);
+  const isInterrupted = useVal(store.$.isInterrupted);
 
   let currentIndex: number;
   let status: "wait" | "process" | "finish" | "error" = "process";
@@ -110,11 +125,6 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
     case ScanningPhase.Completed: {
       currentIndex = 2;
       status = "finish";
-      break;
-    }
-    case ScanningPhase.Error: {
-      currentIndex = 2;
-      status = "error";
       break;
     }
   }
@@ -157,7 +167,7 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
       items={[
         { title: "扫描" },
         { title: "处理文件" },
-        { title: phase === ScanningPhase.Error ? "错误" : "完成" },
+        { title: "完成" },
       ]}
     />
     <List
@@ -178,9 +188,11 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
     />
     <ProgressBar
       name="解析"
+      error={!!error || isInterrupted}
       pdfPage={handlingFile?.handlePdfPage} />
     <ProgressBar
       name="索引"
+      error={!!error || isInterrupted}
       pdfPage={handlingFile?.indexPdfPage} />
     {error && (
       <Result
@@ -189,24 +201,31 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
         subTitle={error}
       />
     )}
+    {isInterrupted && (
+      <Result
+        status="info"
+        title="扫描中断"
+      />
+    )}
   </>;
 };
 
 type ProgressBarProps = {
   readonly name: string;
+  readonly error: boolean;
   readonly pdfPage?: {
     readonly index: number;
     readonly total: number;
   };
 };
 
-const ProgressBar: React.FC<ProgressBarProps> = ({ name, pdfPage }) => {
+const ProgressBar: React.FC<ProgressBarProps> = ({ name, error, pdfPage }) => {
   if (!pdfPage) {
     return null;
   }
   const { index, total } = pdfPage;
   const percent = Math.floor(Math.min(index / total, 1.0) * 100);
-  const status = percent === 100 ? "success" : "active";
+  const status = error ? "exception" : (percent === 100 ? "success" : "active");
   return (
     <div className={styles["progress"]}>
       <label className={styles["progress-label"]}>
