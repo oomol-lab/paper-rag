@@ -197,7 +197,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ name, pdfPage }) => {
     return null;
   }
   const { index, total } = pdfPage;
-  const percent = Math.ceil(Math.min(index / total, 1.0) * 100);
+  const percent = Math.floor(Math.min(index / total, 1.0) * 100);
   const status = percent === 100 ? "success" : "active";
   return (
     <div className={styles["progress"]}>

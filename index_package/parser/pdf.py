@@ -233,6 +233,10 @@ class PdfParser:
           pages_count = len(added_page_hashes)
           progress.complete_handle_pdf_page(i, pages_count)
 
+      if progress is not None:
+          pages_count = len(added_page_hashes)
+          progress.complete_handle_pdf_page(pages_count, pages_count)
+
       self._conn.commit()
       return pdf_id, metadata
 

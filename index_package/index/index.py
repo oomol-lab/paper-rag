@@ -256,7 +256,12 @@ class Index:
           assert_continue()
 
         if progress is not None:
-          progress.on_complete_index_pdf_page(page.index, len(pdf.pages))
+          pages_count = len(pdf.pages)
+          progress.complete_index_pdf_page(page.index, pages_count)
+
+      if progress is not None:
+        pages_count = len(pdf.pages)
+        progress.complete_index_pdf_page(pages_count, pages_count)
 
     except InterruptException as e:
       index_context.rollback()
