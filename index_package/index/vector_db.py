@@ -155,8 +155,7 @@ class VectorDB:
     group_size: int = 45
 
     for offset in range(0, segments_len, group_size):
-      remain_count = segments_len - offset * group_size
-      ids_len = min(group_size, remain_count)
+      ids_len = min(group_size, segments_len - offset)
       ids = [f"{node_id}/{offset + i}" for i in range(ids_len)]
       self._db.delete(ids=ids)
 

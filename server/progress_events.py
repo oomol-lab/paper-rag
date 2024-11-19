@@ -40,13 +40,14 @@ class ProgressEvents:
       on_complete_handle_file=self._on_complete_handle_file,
     )
 
-  def reset(self):
+  def notify_scanning(self):
     with self._status_lock:
+      if self._phase != ProgressPhase.READY:
+        self._scanned_count = 0
+        self._handing_file = None
+        self._error = None
+        self._completed_files.clear()
       self._phase = ProgressPhase.SCANNING
-      self._scanned_count = 0
-      self._handing_file = None
-      self._error = None
-      self._completed_files.clear()
 
     self._emit_event({
       "kind": "scanning",
@@ -155,7 +156,6 @@ class ProgressEvents:
   def complete(self):
     with self._status_lock:
       self._phase = ProgressPhase.COMPLETED
-      self._completed_files.clear()
       self._handing_file = None
 
     self._emit_event({

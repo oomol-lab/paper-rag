@@ -2,6 +2,7 @@ import os
 import threading
 
 from typing import cast, Optional, Callable
+
 from .service_in_thread import ServiceInThread
 from ..scanner import Scope, EventParser, Scanner
 from ..progress import Progress
@@ -90,10 +91,4 @@ class ServiceScanJob:
       else:
         display_path = f"[removed]:{display_path}"
 
-      if self._progress is not None:
-        self._progress.start_handle_file(display_path)
-
       service.handle_event(event, self._progress)
-
-      if self._progress is not None:
-        self._progress.complete_handle_file(display_path)

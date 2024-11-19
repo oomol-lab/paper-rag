@@ -154,6 +154,9 @@ class Index:
     if path is None:
       return
 
+    if progress is not None:
+      progress.start_handle_file(path)
+
     cursor = self._conn.cursor()
     try:
       cursor.execute("BEGIN TRANSACTION")
@@ -177,6 +180,9 @@ class Index:
 
       self._conn.commit()
       cursor.close()
+
+      if progress is not None:
+        progress.complete_handle_file(path)
 
     except Exception as e:
       self._conn.rollback()
@@ -256,7 +262,12 @@ class Index:
           assert_continue()
 
         if progress is not None:
-          progress.on_complete_index_pdf_page(page.index, len(pdf.pages))
+          pages_count = len(pdf.pages)
+          progress.complete_index_pdf_page(page.index, pages_count)
+
+      if progress is not None:
+        pages_count = len(pdf.pages)
+        progress.complete_index_pdf_page(pages_count, pages_count)
 
     except InterruptException as e:
       index_context.rollback()
