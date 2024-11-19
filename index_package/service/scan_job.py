@@ -42,7 +42,7 @@ class ServiceScanJob:
 
     if self._progress is not None:
       count = self._scanner.events_count
-      self._progress.start_scan(count)
+      self._progress.after_scan(count)
 
     for event_id in event_ids:
       success = self._pool.push(event_id)
