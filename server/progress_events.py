@@ -7,6 +7,7 @@ from index_package import ProgressListeners
 
 
 class ProgressPhase(IntEnum):
+  READY = 0
   SCANNING = 1
   HANDING_FILES = 2
   COMPLETED = 3
@@ -20,7 +21,7 @@ class HandingFile:
 
 class ProgressEvents:
   def __init__(self):
-    self._phase: ProgressPhase = ProgressPhase.SCANNING
+    self._phase: ProgressPhase = ProgressPhase.READY
     self._status_lock: Lock = Lock()
     self._scanned_count: int = 0
     self._handing_file: HandingFile | None = None
@@ -48,11 +49,14 @@ class ProgressEvents:
       self._completed_files.clear()
 
     self._emit_event({
-      "kind": "reset",
+      "kind": "scanning",
     })
 
   def _init_events(self) -> list[dict]:
     with self._status_lock:
+      if self._phase == ProgressPhase.READY:
+        return []
+
       if self._phase == ProgressPhase.SCANNING:
         return [{ "kind": "scanning" }]
 

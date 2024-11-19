@@ -32,10 +32,10 @@ def routes(app: Flask, service: ServiceRef):
   @app.route("/api/scanning", methods=["POST"])
   def post_scanning():
     service.start_scanning()
-    return jsonify(None), 204
+    return jsonify(None), 201
 
   @app.route("/api/scanning", methods=["GET"])
-  def get_events_stream(id: int):
+  def get_scanning():
     return Response(
       service.gen_scanning_sse_lines(),
       content_type="text/event-stream",
