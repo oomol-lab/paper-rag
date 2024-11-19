@@ -132,6 +132,10 @@ const SourceAddition: React.FC<SourceAdditionProps> = ({ store }) => {
     },
     [canAdd, store],
   );
+  const onClickAdd = React.useCallback(
+    () => store.addSource(),
+    [store],
+  );
   return (
     <div className={styles["source-editor"]}>
       <Space.Compact className={styles["source-input"]}>
@@ -163,7 +167,8 @@ const SourceAddition: React.FC<SourceAdditionProps> = ({ store }) => {
         className={styles["source-button"]}
         type="primary"
         icon={<PlusCircleTwoTone />}
-        disabled={!canAdd || isSubmittingAddition} >
+        disabled={!canAdd || isSubmittingAddition}
+        onClick={onClickAdd} >
         添加
       </Button>
     </div>
