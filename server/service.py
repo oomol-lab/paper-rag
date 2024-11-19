@@ -47,7 +47,7 @@ class ServiceRef:
       raise e
 
   def _scan(self):
-    self._progress_events.reset()
+    self._progress_events.notify_scanning()
     service = Service(
       workspace_path=self._workspace_path,
       embedding_model_id=self._embedding_model,
