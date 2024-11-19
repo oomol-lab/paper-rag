@@ -149,6 +149,7 @@ const SourceAddition: React.FC<SourceAdditionProps> = ({ store }) => {
             该名字已存在！
           </>}>
           <Input
+            placeholder="名字"
             className={styles["source-input-name"]}
             value={addedSourceName}
             disabled={isSubmittingAddition}
@@ -156,6 +157,7 @@ const SourceAddition: React.FC<SourceAdditionProps> = ({ store }) => {
             onChange={onChangeNameInput} />
         </Popover>
         <Input
+          placeholder="知识库文件夹路径"
           ref={pathInputRef}
           value={addedSourcePath}
           disabled={isSubmittingAddition}
