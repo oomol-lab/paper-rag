@@ -14,7 +14,19 @@ export const ScannerPage: React.FC = () => {
   const store$ = React.useMemo(() => val<ScannerStore | null>(null), []);
   const store = useVal(store$);
   React.useEffect(
-    () => void ScannerStore.load().then((store) => store$.set(store)),
+    () => {
+      let shouldClose = false;
+      ScannerStore.load().then((store) => {
+        if (shouldClose) {
+          store.close();
+        }
+        store$.set(store);
+      });
+      return () => {
+        shouldClose = true;
+        store$.value?.close();
+      };
+    },
     [store$],
   );
   if (!store) {
@@ -34,6 +46,11 @@ type ScannerProps = {
 };
 
 const Scanner: React.FC<ScannerProps> = ({ store }) => {
+  const scanningStore = store.scanningStore;
+  const onClickScan = React.useCallback(
+    () => scanningStore.scan(),
+    [scanningStore],
+  );
   return <>
     <Typography>
       <Title>扫描</Title>
@@ -46,7 +63,8 @@ const Scanner: React.FC<ScannerProps> = ({ store }) => {
       shape="round"
       size="large"
       className={styles["scan-button"]}
-      icon={<ScanOutlined />} >
+      icon={<ScanOutlined />}
+      onClick={onClickScan} >
       扫  描
     </Button>
   </>;

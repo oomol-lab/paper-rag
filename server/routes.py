@@ -1,15 +1,16 @@
 import os
 
-from .sources import Sources
+from .service import ServiceRef
 from flask import (
   request,
   jsonify,
   send_file,
   send_from_directory,
   Flask,
+  Response,
 )
 
-def routes(app: Flask, sources: Sources):
+def routes(app: Flask, service: ServiceRef):
 
   @app.route("/static/<file_name>")
   def get_static_file(file_name: str):
@@ -28,6 +29,18 @@ def routes(app: Flask, sources: Sources):
 
     return send_from_directory(dir_path, file_name)
 
+  @app.route("/api/scanning", methods=["POST"])
+  def post_scanning():
+    service.start_scanning()
+    return jsonify(None), 201
+
+  @app.route("/api/scanning", methods=["GET"])
+  def get_scanning():
+    return Response(
+      service.gen_scanning_sse_lines(),
+      content_type="text/event-stream",
+    )
+
   @app.route("/api/sources", methods=["GET"])
   def get_sources():
     return jsonify([
@@ -35,7 +48,7 @@ def routes(app: Flask, sources: Sources):
         "name": name,
         "path": path,
       }
-      for name, path in sources.items()
+      for name, path in service.sources.items()
     ])
 
   @app.route("/api/sources", methods=["PUT"])
@@ -52,7 +65,7 @@ def routes(app: Flask, sources: Sources):
     if not isinstance(path, str):
       raise ValueError("Invalid path")
 
-    sources.put(name, path)
+    service.sources.put(name, path)
     return jsonify({
       "name": name,
       "path": path,
@@ -63,7 +76,7 @@ def routes(app: Flask, sources: Sources):
     name = request.args.get("name", "")
     if name == "":
       raise ValueError("Invalid name")
-    sources.remove(name)
+    service.sources.remove(name)
     return jsonify(None), 204
 
   @app.errorhandler(404)

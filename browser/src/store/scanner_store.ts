@@ -1,6 +1,7 @@
 import { message } from "antd";
 import { val, derive, combine, ReadonlyVal, Val } from "value-enhancer";
 import { fetchJson } from "../utils";
+import { ScanningStore } from "./scanning_store";
 
 
 export type ScannerStore$ = {
@@ -15,12 +16,14 @@ export type ScannerStore$ = {
 export class ScannerStore {
   public readonly $: ScannerStore$;
 
+  readonly #scanningStore: ScanningStore;
   readonly #sources$: Val<SourceStore[]>;
   readonly #addedSourceName$: Val<string>;
   readonly #addedSourcePath$: Val<string>;
   readonly #isSubmittingAddition$: Val<boolean>;
 
   private constructor(sources: { name: string, path: string }[]) {
+    this.#scanningStore = new ScanningStore();
     this.#sources$ = val(sources.map(({ name, path }) => new SourceStore(name, path, this.#onRemoveSource)));
     this.#addedSourceName$ = val("");
     this.#addedSourcePath$ = val("");
@@ -53,6 +56,18 @@ export class ScannerStore {
       isSubmittingAddition: derive(this.#isSubmittingAddition$),
       canAdd: canAdd$,
     };
+    this.#scanningStore.runLoop().catch((error) => {
+      console.error(error);
+      message.error(error.message);
+    });
+  }
+
+  public get scanningStore(): ScanningStore {
+    return this.#scanningStore;
+  }
+
+  public close(): void {
+    this.#scanningStore.close();
   }
 
   public static async load(): Promise<ScannerStore> {
