@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./ScannerPage.module.less";
 
-import { Skeleton, Steps, List, Button, Divider, Progress, Typography } from "antd";
+import { Skeleton, Result, Steps, List, Button, Divider, Progress, Typography } from "antd";
 import { ScanOutlined, ProfileTwoTone, SyncOutlined, FilePdfTwoTone } from "@ant-design/icons";
 import { val } from "value-enhancer";
 import { useVal } from "use-value-enhancer";
@@ -90,6 +90,7 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
   const scanCount = useVal(store.$.scanCount);
   const completedFiles = useVal(store.$.completedFiles);
   const handlingFile = useVal(store.$.handlingFile);
+  const error = useVal(store.$.error);
 
   let currentIndex: number;
   let status: "wait" | "process" | "finish" | "error" = "process";
@@ -181,6 +182,13 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
     <ProgressBar
       name="索引"
       pdfPage={handlingFile?.indexPdfPage} />
+    {error && (
+      <Result
+        status="error"
+        title="扫描失败"
+        subTitle={error}
+      />
+    )}
   </>;
 };
 
