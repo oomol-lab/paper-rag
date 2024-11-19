@@ -7,6 +7,7 @@ import webbrowser
 from flask import Flask
 from .routes import routes
 from .sources import Sources
+from .service import ServiceRef
 
 
 def launch():
@@ -17,10 +18,15 @@ def launch():
 
   print(f"Server is running on http://0.0.0.0:{port}")
   app = Flask(__name__)
-  app_db_path = os.path.join(__file__, "..", "..", "data", "app.sqlite3")
-  app_db_path = os.path.abspath(app_db_path)
-  sources = Sources(app_db_path)
-  routes(app, sources)
+  app_dir = os.path.join(__file__, "..", "..", "data")
+  app_dir = os.path.abspath(app_dir)
+  sources = Sources(os.path.join(app_dir, "app.sqlite3"))
+  service = ServiceRef(
+    workspace_path=app_dir,
+    embedding_model="shibing624/text2vec-base-chinese",
+    sources=sources,
+  )
+  routes(app, service)
   app.run(host="0.0.0.0", port=port)
   thread.join()
 
