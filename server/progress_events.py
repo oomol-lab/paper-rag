@@ -156,7 +156,6 @@ class ProgressEvents:
   def complete(self):
     with self._status_lock:
       self._phase = ProgressPhase.COMPLETED
-      self._completed_files.clear()
       self._handing_file = None
 
     self._emit_event({

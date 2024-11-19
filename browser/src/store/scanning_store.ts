@@ -1,4 +1,4 @@
-import { val, derive, Val, ReadonlyVal } from "value-enhancer";
+import { val, derive, combine, Val, ReadonlyVal } from "value-enhancer";
 import { fetchJson, fetchJsonEvents, EventFetcher } from "../utils";
 
 type Event = {
@@ -31,6 +31,7 @@ export type ScanningStore$ = {
   readonly handlingFile: ReadonlyVal<HandingFile | null>;
   readonly completedFiles: ReadonlyVal<readonly string[]>;
   readonly error: ReadonlyVal<string | null>;
+  readonly isScanning: ReadonlyVal<boolean>;
 };
 
 export enum ScanningPhase {
@@ -71,6 +72,18 @@ export class ScanningStore {
       handlingFile: derive(this.#handlingFile$),
       completedFiles: derive(this.#completedFiles$),
       error: derive(this.#error$),
+      isScanning: derive(this.#phase$, phase => {
+        switch (phase) {
+          case ScanningPhase.Ready:
+          case ScanningPhase.Completed:
+          case ScanningPhase.Error: {
+            return false;
+          }
+          default: {
+            return true;
+          }
+        }
+      }),
     };
   }
 
