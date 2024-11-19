@@ -154,6 +154,9 @@ class Index:
     if path is None:
       return
 
+    if progress is not None:
+      progress.start_handle_file(path)
+
     cursor = self._conn.cursor()
     try:
       cursor.execute("BEGIN TRANSACTION")
@@ -177,6 +180,9 @@ class Index:
 
       self._conn.commit()
       cursor.close()
+
+      if progress is not None:
+        progress.complete_handle_file(path)
 
     except Exception as e:
       self._conn.rollback()
