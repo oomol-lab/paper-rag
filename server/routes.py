@@ -29,17 +29,22 @@ def routes(app: Flask, service: ServiceRef):
 
     return send_from_directory(dir_path, file_name)
 
-  @app.route("/api/scanning", methods=["POST"])
-  def post_scanning():
-    service.start_scanning()
-    return jsonify(None), 201
-
   @app.route("/api/scanning", methods=["GET"])
   def get_scanning():
     return Response(
       service.gen_scanning_sse_lines(),
       content_type="text/event-stream",
     )
+
+  @app.route("/api/scanning", methods=["DELETE"])
+  def delete_scanning():
+    service.interrupt_scanning()
+    return jsonify(None), 204
+
+  @app.route("/api/scanning", methods=["POST"])
+  def post_scanning():
+    service.start_scanning()
+    return jsonify(None), 201
 
   @app.route("/api/sources", methods=["GET"])
   def get_sources():

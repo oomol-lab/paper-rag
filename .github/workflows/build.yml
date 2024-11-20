@@ -5,15 +5,48 @@ on:
       - "main"
 
 jobs:
+  build-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+          run_install: false
+
+      - name: NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: ./browser/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ./browser
+        run: pnpm i
+
+      - name: Check TypeScript
+        working-directory: ./browser
+        run: pnpm ts-check
+
+      - name: Build
+        working-directory: ./browser
+        run: pnpm build
+
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12.7"
+          cache: "pip"
 
       - name: Install dependencies
         run: |

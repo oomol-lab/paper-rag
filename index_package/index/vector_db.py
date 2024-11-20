@@ -9,8 +9,8 @@ from chromadb.api import ClientAPI
 from chromadb.api.types import ID, EmbeddingFunction, IncludeEnum, Documents, Embedding, Embeddings, Document, Metadata
 from chromadb.utils import distance_functions
 
+from ..segmentation import Segment
 from .types import IndexNode, IndexSegment, IndexNodeMatching
-from ..segmentation.segmentation import Segment
 
 _DistanceFunction = Callable[[ArrayLike, ArrayLike], float]
 DistanceSpace = Literal["l2", "ip", "cosine"]
