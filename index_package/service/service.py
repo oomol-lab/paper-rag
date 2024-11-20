@@ -1,4 +1,5 @@
 import os
+import threading
 
 from typing import Optional
 from .service_in_thread import ServiceInThread, QueryResult
@@ -9,13 +10,14 @@ from ..segmentation.segmentation import Segmentation
 from ..progress_events import ProgressEventListener
 from ..utils import ensure_dir, ensure_parent_dir
 
+_service_in_thread = threading.local()
+
 class Service:
   def __init__(
     self,
     workspace_path: str,
     embedding_model_id: str,
   ):
-    self._service_in_thread: Optional[ServiceInThread] = None
     self._scan_db_path: str = ensure_parent_dir(
       os.path.abspath(os.path.join(workspace_path, "scanner.sqlite3"))
     )
@@ -57,12 +59,15 @@ class Service:
       create_service=lambda scope: self._create_service_in_thread(scope),
     )
 
+  # TODO: 这会导致无法释放。要彻底解决，需要迁移 sqlite pool 的逻辑。
   def _get_service_in_thread(self) -> ServiceInThread:
-    if self._service_in_thread is None:
+    service_in_thread = getattr(_service_in_thread, "value", None)
+    if service_in_thread is None:
       scanner = Scanner(self._scan_db_path)
-      self._service_in_thread = self._create_service_in_thread(scanner.scope)
+      service_in_thread = self._create_service_in_thread(scanner.scope)
+      setattr(_service_in_thread, "value", service_in_thread)
 
-    return self._service_in_thread
+    return service_in_thread
 
   def _create_service_in_thread(self, scope: Scope) -> ServiceInThread:
     return ServiceInThread(

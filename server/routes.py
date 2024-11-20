@@ -1,5 +1,4 @@
 import os
-import sys
 
 from .service import ServiceRef
 from flask import (
@@ -29,6 +28,21 @@ def routes(app: Flask, service: ServiceRef):
     dir_path = os.path.abspath(dir_path)
 
     return send_from_directory(dir_path, file_name)
+
+  @app.route("/api/query", methods=["GET"])
+  def get_query():
+    query = request.args.get("query", "")
+    results_limit = request.args.get("resultsLimit", None)
+    if query == "":
+      raise ValueError("Invalid query")
+    if results_limit is not None:
+      results_limit = int(results_limit)
+
+    result = service.ref.query(
+      text=query,
+      results_limit=results_limit,
+    )
+    return jsonify(result)
 
   @app.route("/api/scanning", methods=["GET"])
   def get_scanning():

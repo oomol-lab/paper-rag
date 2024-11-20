@@ -42,4 +42,4 @@ def _load_port():
 
 def _launch_browser(port: int):
   time.sleep(0.85)
-  webbrowser.open(f"http://localhost:{port}/scanner")
+  webbrowser.open(f"http://localhost:{port}/query")

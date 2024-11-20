@@ -7,6 +7,7 @@ import { useNavigate, BrowserRouter, Routes, Route } from "react-router-dom";
 import { Button, Result, ConfigProvider } from "antd";
 import { Navigator } from "./Navigator";
 import { ScannerPage } from "./ScannerPage";
+import { QueryPage } from "./QueryPage";
 
 export const App: React.FC<{}> = () => {
   return (
@@ -28,6 +29,7 @@ export const App: React.FC<{}> = () => {
 const AppRoutes: React.FC<{}> = () => (
   <Routes>
     <Route path="/scanner" element={<ScannerPage />} />
+    <Route path="/query" element={<QueryPage/ >} />
     <Route path="*" element={<AppNotFound />} />
   </Routes>
 );

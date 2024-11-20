@@ -20,12 +20,15 @@ class ServiceRef:
     self._workspace_path: str = workspace_path
     self._embedding_model: str = embedding_model
     self._lock: Lock = Lock()
-    self._service: Service | None = None
     self._is_scanning: bool = False
     self._scan_job: ServiceScanJob | None = None
     self._scan_job_event: Event | None = None
     self._progress_events: ProgressEvents = ProgressEvents()
     self._signal_handler = SignalHandler()
+    self._service: Service | None = Service(
+      workspace_path=self._workspace_path,
+      embedding_model_id=self._embedding_model,
+    )
 
   @property
   def ref(self) -> Service:
