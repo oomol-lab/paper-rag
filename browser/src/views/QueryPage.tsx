@@ -1,9 +1,11 @@
 import React from "react";
 import styles from "./QueryPage.module.less";
 
-import { Skeleton, Input, Divider } from "antd";
-import { QueryResult, QueryStore } from "../store";
+import { Tag, Empty, Skeleton, Input, Divider, Descriptions } from "antd";
 import { useVal } from "use-value-enhancer";
+import { PDFPageItem, QueryResult, QueryStore } from "../store";
+import { PDFTagLink } from "./Link";
+import { Text } from "./Text";
 
 const { Search } = Input;
 
@@ -41,9 +43,61 @@ type ResultDisplayProps = {
 };
 
 const ResultDisplay: React.FC<ResultDisplayProps> = ({ result }) => {
+  const { keywords, items } = result;
   return (
     <div className={styles["query-result-box"]}>
-      {JSON.stringify(result, undefined, 2)}
+      <div className={styles["keywords-bar"]}>
+        <label>关键词：</label>
+        {keywords.map((keyword, index) => (
+          <Tag key={`${index}`}>{keyword}</Tag>
+        ))}
+      </div>
+      {items.length === 0 && (
+        <Empty
+          className={styles.empty}
+          description="没有搜索到内容" />
+      )}
+      {items.map((item, index) => {
+        if (!("content" in item)) {
+          // TODO: 对 PDF Metadata 本身的搜索
+          return null;
+        }
+        return (
+          <PDFPageCard key={`${index}`} item={item} />
+        );
+      })}
+    </div>
+  );
+};
+
+type PDFPageCardProps = {
+  readonly item: PDFPageItem;
+};
+
+const PDFPageCard: React.FC<PDFPageCardProps> = ({ item }) => {
+  const { distance, pdf_files, content, segments } = item;
+  return (
+    <div className={styles["pdf-page-card"]}>
+      <Descriptions
+        layout="vertical"
+        items={[{
+          key: "1",
+          label: "文件",
+          children: pdf_files.map((pdf, index) => (
+            <PDFTagLink
+              key={`${index}`}
+              path={pdf.pdf_path}
+              page={pdf.page_index} />
+          )),
+        }, {
+          key: "2",
+          label: "距离",
+          children: distance,
+        }]} />
+      <Text
+        className={styles.text}
+        content={content}
+        segments={segments} />
     </div>
   );
 };

@@ -7,7 +7,44 @@ export type QueryStore$ = {
   readonly queryResult: ReadonlyVal<QueryResult | null>;
 };
 
-export type QueryResult = {};
+export type QueryResult = {
+  readonly keywords: readonly string[];
+  readonly items: readonly QueryItem[];
+};
+
+export type QueryItem = PDFMetadataItem | PDFPageItem;
+
+export type PDFMetadataItem = {
+  readonly pdf_files: readonly string[];
+  readonly distance: number;
+  readonly metadata: {
+    readonly author: string | null;
+    readonly modified_at: string | null;
+    readonly producer: string | null;
+  };
+};
+
+export type PDFPageItem = {
+  readonly pdf_files: readonly {
+    readonly pdf_path: string;
+    readonly page_index: number;
+  }[];
+  readonly distance: number;
+  readonly content: string;
+  readonly segments: readonly HighlightSegment[];
+  readonly annotations: readonly {
+    readonly index: number;
+    readonly distance: number;
+    readonly content: string;
+    readonly segments: readonly HighlightSegment[];
+  }[];
+};
+
+export type HighlightSegment = {
+  readonly start: number;
+  readonly end: number;
+  readonly highlights: readonly [number, number][];
+};
 
 export class QueryStore {
   public readonly $: QueryStore$;
