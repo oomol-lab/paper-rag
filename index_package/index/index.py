@@ -5,7 +5,6 @@ import io
 import sqlite3
 
 from typing import Optional
-
 from .fts5_db import FTS5DB
 from .vector_db import VectorDB
 from .index_db import IndexDB
@@ -13,8 +12,16 @@ from .types import IndexNode, PageRelativeToPDF
 from ..parser import PdfParser, PdfMetadata, PdfPage
 from ..scanner import Scope, Event, EventKind, EventTarget
 from ..segmentation import Segment, Segmentation
-from ..progress import Progress
 from ..utils import hash_sha512, ensure_parent_dir, is_empty_string, assert_continue, InterruptException
+from ..progress_events import (
+  FileFormat,
+  PDFFileProgressEvent,
+  PDFFileStep,
+  CompleteHandleFileEvent,
+  HandleFileOperation,
+  StartHandleFileEvent,
+  ProgressEventListener,
+)
 
 class Index:
   def __init__(
@@ -149,14 +156,27 @@ class Index:
 
     return query_nodes, keywords
 
-  def handle_event(self, event: Event, progress: Optional[Progress] = None):
+  def handle_event(self, event: Event, listener: ProgressEventListener):
     path = self._filter_and_get_abspath(event)
     if path is None:
       return
 
-    if progress is not None:
-      progress.start_handle_file(path)
+    operation: HandleFileOperation
 
+    if event.kind == EventKind.Added:
+      operation = HandleFileOperation.Create
+    elif event.kind == EventKind.Updated:
+      operation = HandleFileOperation.Update
+    elif event.kind == EventKind.Removed:
+      operation = HandleFileOperation.Remove
+    else:
+      raise Exception(f"Unknown event kind: {event.kind}")
+
+    listener(StartHandleFileEvent(
+      path=path,
+      format=FileFormat.PDF,
+      operation=operation,
+    ))
     cursor = self._conn.cursor()
     try:
       cursor.execute("BEGIN TRANSACTION")
@@ -169,7 +189,7 @@ class Index:
         cursor.execute("SELECT COUNT(*) FROM files WHERE hash = ?", (new_hash,))
         num_rows = cursor.fetchone()[0]
         if num_rows == 1:
-          self._handle_found_pdf_hash(cursor, new_hash, path, progress)
+          self._handle_found_pdf_hash(cursor, new_hash, path, listener)
 
       # process that commit deleted pages is not breakable.
       if origin_id_hash is not None:
@@ -180,9 +200,7 @@ class Index:
 
       self._conn.commit()
       cursor.close()
-
-      if progress is not None:
-        progress.complete_handle_file(path)
+      listener(CompleteHandleFileEvent(path=path))
 
     except Exception as e:
       self._conn.rollback()
@@ -243,8 +261,8 @@ class Index:
 
     return new_hash, origin_id_hash
 
-  def _handle_found_pdf_hash(self, cursor: sqlite3.Cursor, hash: str, path: str, progress: Optional[Progress]):
-    pdf = self._pdf_parser.pdf(hash, path, progress)
+  def _handle_found_pdf_hash(self, cursor: sqlite3.Cursor, hash: str, path: str, listener: ProgressEventListener):
+    pdf = self._pdf_parser.pdf(hash, path, listener)
     for page in pdf.pages:
       cursor.execute(
         "INSERT INTO pages (pdf_hash, page_index, hash) VALUES (?, ?, ?)",
@@ -261,13 +279,18 @@ class Index:
           self._save_page_content_into_index(index_context, page)
           assert_continue()
 
-        if progress is not None:
-          pages_count = len(pdf.pages)
-          progress.complete_index_pdf_page(page.index, pages_count)
+        listener(PDFFileProgressEvent(
+          step=PDFFileStep.Index,
+          completed=page.index,
+          total=len(pdf.pages),
+        ))
+      pages_count = len(pdf.pages)
 
-      if progress is not None:
-        pages_count = len(pdf.pages)
-        progress.complete_index_pdf_page(pages_count, pages_count)
+      listener(PDFFileProgressEvent(
+        step=PDFFileStep.Index,
+        completed=pages_count,
+        total=pages_count,
+      ))
 
     except InterruptException as e:
       index_context.rollback()

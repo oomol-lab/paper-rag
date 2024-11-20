@@ -6,7 +6,7 @@ from .scan_job import ServiceScanJob
 from ..scanner import Scope, Scanner
 from ..index import VectorDB
 from ..segmentation.segmentation import Segmentation
-from ..progress import Progress, ProgressListeners
+from ..progress_events import ProgressEventListener
 from ..utils import ensure_dir, ensure_parent_dir
 
 class Service:
@@ -49,15 +49,14 @@ class Service:
   def freeze_database(self):
     pass # TODO: 因为强制退出导致数据结构损坏，此处需要冻结数据库并重新开始
 
-  def scan_job(self, max_workers: int = 1, progress_listeners: Optional[ProgressListeners] = None) -> ServiceScanJob:
-    progress: Optional[Progress] = None
-    if progress_listeners is not None:
-      progress = Progress(progress_listeners)
+  def scan_job(self, max_workers: int = 1, progress_event_listener: Optional[ProgressEventListener] = None) -> ServiceScanJob:
+    if progress_event_listener is None:
+      progress_event_listener = lambda _: None
 
     return ServiceScanJob(
       max_workers=max_workers,
       scan_db_path=self._scan_db_path,
-      progress=progress,
+      progress_event_listener=progress_event_listener,
       create_service=lambda scope: self._create_service_in_thread(scope),
     )
 

@@ -1,26 +1,18 @@
+from dataclasses import dataclass
 import sqlite3
 
 from typing import Optional, Callable
 from .events import EventKind, EventTarget
 
+@dataclass
 class Event:
-  def __init__(
-    self,
-    id: int,
-    kind: EventKind,
-    target: EventTarget,
-    scope: str,
-    path: str,
-    mtime: float,
-    on_exit: Optional[Callable[[], None]] = None,
-  ):
-    self.id: int = id
-    self.kind: EventKind = kind
-    self.target: EventTarget = target
-    self.scope: str = scope
-    self.path: str = path
-    self.mtime: float = mtime
-    self._on_exit: Optional[Callable[[], None]] = on_exit
+  id: int
+  kind: EventKind
+  target: EventTarget
+  scope: str
+  path: str
+  mtime: float
+  _on_exit: Optional[Callable[[], None]] = None
 
   def __enter__(self):
     return self
@@ -50,7 +42,7 @@ class EventParser:
       path=row[2],
       scope=row[3],
       mtime=row[4],
-      on_exit=lambda: self._remove_event(event_id),
+      _on_exit=lambda: self._remove_event(event_id),
     )
 
   def close(self):

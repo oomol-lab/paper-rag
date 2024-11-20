@@ -62,7 +62,7 @@ class ServiceRef:
       embedding_model_id=self._embedding_model,
     )
     scan_job = service.scan_job(
-      progress_listeners=self._progress_events.listeners,
+      progress_event_listener=self._progress_events.receive_event,
     )
     with self._lock:
       self._scan_job = scan_job

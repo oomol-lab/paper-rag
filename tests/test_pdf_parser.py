@@ -23,7 +23,7 @@ class TestPdfParser(unittest.TestCase):
     common_page_hash = "l02eglkFC4Yg2S7Gt44MuGne1PxnBgZ3lBgLvZ24GI0fwF-B70Sf4DjCxe_uU4KsZpyzKNasFLuxe_MUiSZXWQ=="
     file1, file1_hash = self._assets_info(assets_path, "The Sublime Object of Ideology.pdf")
     file2, file2_hash = self._assets_info(assets_path, "铁证待判.pdf")
-    pdf1 = parser.pdf(file1_hash, file1)
+    pdf1 = parser.pdf(file1_hash, file1, lambda _: None)
 
     self.assertListEqual(removed_page_hashes, [])
     self.assertListEqual(added_page_hashes, [
@@ -45,7 +45,7 @@ class TestPdfParser(unittest.TestCase):
 
     added_page_hashes = []
     removed_page_hashes = []
-    pdf2 = parser.pdf(file2_hash, file2)
+    pdf2 = parser.pdf(file2_hash, file2, lambda _: None)
 
     self.assertListEqual(removed_page_hashes, [])
     self.assertListEqual(added_page_hashes, [
@@ -124,7 +124,7 @@ class TestPdfParser(unittest.TestCase):
     removed_page_hashes: list[str] = []
 
     file, file_hash = self._assets_info(assets_path, "纯粹理性批判.pdf")
-    pdf = parser.pdf(file_hash, file)
+    pdf = parser.pdf(file_hash, file, lambda _: None)
 
     self.assertListEqual(removed_page_hashes, [])
     self.assertListEqual(added_page_hashes, [

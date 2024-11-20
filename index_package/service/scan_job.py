@@ -5,7 +5,7 @@ from typing import cast, Optional, Callable
 
 from .service_in_thread import ServiceInThread
 from ..scanner import Scope, EventParser, Scanner
-from ..progress import Progress
+from ..progress_events import ProgressEventListener, ScanCompletedEvent
 from ..utils import TasksPool, TasksPoolResultState
 
 _JobContext = tuple[ServiceInThread, EventParser]
@@ -16,11 +16,11 @@ class ServiceScanJob:
     scan_db_path: str,
     max_workers: int,
     create_service: Callable[[Scope], ServiceInThread],
-    progress: Optional[Progress],
+    progress_event_listener: ProgressEventListener,
   ):
     self._job_contexts: list[Optional[_JobContext]] = [None for _ in range(max_workers)]
     self._create_service: Callable[[Scope], ServiceInThread] = create_service
-    self._progress: Optional[Progress] = progress
+    self._listener: ProgressEventListener = progress_event_listener
     self._interrupter_lock: threading.Lock = threading.Lock()
     self._did_interrupted: bool = False
     self._scanner: Scanner = Scanner(
@@ -41,9 +41,9 @@ class ServiceScanJob:
     event_ids = self._scanner.scan()
     self._pool.start()
 
-    if self._progress is not None:
-      count = self._scanner.events_count
-      self._progress.after_scan(count)
+    self._listener(ScanCompletedEvent(
+      updated_files=self._scanner.events_count,
+    ))
 
     for event_id in event_ids:
       success = self._pool.push(event_id)
@@ -91,4 +91,4 @@ class ServiceScanJob:
       else:
         display_path = f"[removed]:{display_path}"
 
-      service.handle_event(event, self._progress)
+      service.handle_event(event, self._listener)
