@@ -22,9 +22,10 @@ def launch():
   app_dir = os.path.abspath(app_dir)
   sources = Sources(os.path.join(app_dir, "app.sqlite3"))
   service = ServiceRef(
+    app=app,
     workspace_path=app_dir,
-    embedding_model="shibing624/text2vec-base-chinese",
     sources=sources,
+    embedding_model="shibing624/text2vec-base-chinese",
   )
   routes(app, service)
   app.run(host="0.0.0.0", port=port)

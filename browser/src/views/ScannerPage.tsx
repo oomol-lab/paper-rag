@@ -5,7 +5,7 @@ import { Skeleton, Result, Steps, List, Button, Divider, Progress, Typography } 
 import { ScanOutlined, ProfileTwoTone, SyncOutlined, FilePdfTwoTone, PauseOutlined } from "@ant-design/icons";
 import { val } from "value-enhancer";
 import { useVal } from "use-value-enhancer";
-import { ScannerStore, ScanningStore, ScanningPhase } from "../store";
+import { ScannerStore, ScanningStore, ScanningPhase, FileOperation } from "../store";
 import { Sources } from "./Sources";
 
 const { Title, Paragraph } = Typography;
@@ -149,15 +149,15 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
   for (const file of completedFiles) {
     records.push({
       icon: <FilePdfTwoTone />,
-      title: "录入 PDF 文件",
-      content: file,
+      title: `${textWithOperation(file.operation)} PDF 文件`,
+      content: file.path,
       loading: false,
     });
   }
   if (handlingFile) {
     records.push({
       icon: <FilePdfTwoTone />,
-      title: "录入 PDF 文件",
+      title: `${textWithOperation(handlingFile.operation)} PDF 文件`,
       content: handlingFile.path,
       loading: true,
     });
@@ -243,3 +243,22 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ name, error, pdfPage }) => {
     </div>
   );
 };
+
+function textWithOperation(operation: FileOperation): string {
+  let text: string = "";
+  switch (operation) {
+    case "create": {
+      text = "录入";
+      break;
+    }
+    case "update": {
+      text = "更新";
+      break;
+    }
+    case "remove": {
+      text = "删除";
+      break;
+    }
+  }
+  return text;
+}

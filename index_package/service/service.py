@@ -46,9 +46,6 @@ class Service:
   def page_content(self, pdf_hash: str, page_index: int) -> str:
     return self._get_service_in_thread().page_content(pdf_hash, page_index)
 
-  def freeze_database(self):
-    pass # TODO: 因为强制退出导致数据结构损坏，此处需要冻结数据库并重新开始
-
   def scan_job(self, max_workers: int = 1, progress_event_listener: Optional[ProgressEventListener] = None) -> ServiceScanJob:
     if progress_event_listener is None:
       progress_event_listener = lambda _: None

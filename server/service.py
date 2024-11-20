@@ -1,22 +1,31 @@
 from threading import Thread, Lock, Event
 from typing import Generator
 from json import dumps
+from flask import Flask
 from index_package import Service, ServiceScanJob
 from .sources import Sources
 from .progress_events import ProgressEvents
+from .signal_handler import SignalHandler
 
 
 class ServiceRef:
-  def __init__(self, workspace_path: str, embedding_model: str, sources: Sources):
+  def __init__(self,
+      app: Flask,
+      sources: Sources,
+      workspace_path: str,
+      embedding_model: str,
+    ):
+    self._app: Flask = app
+    self._sources: Sources = sources
     self._workspace_path: str = workspace_path
     self._embedding_model: str = embedding_model
-    self._sources: Sources = sources
     self._lock: Lock = Lock()
     self._service: Service | None = None
     self._is_scanning: bool = False
     self._scan_job: ServiceScanJob | None = None
     self._scan_job_event: Event | None = None
     self._progress_events: ProgressEvents = ProgressEvents()
+    self._signal_handler = SignalHandler()
 
   @property
   def ref(self) -> Service:
@@ -70,6 +79,11 @@ class ServiceRef:
         self._scan_job_event.set()
         self._scan_job_event = None
 
+    success_bind = self._signal_handler.bind_scan_job(scan_job)
+    if not success_bind:
+      self._progress_events.set_interrupted()
+      return
+
     try:
       try:
         completed = scan_job.start({
@@ -89,6 +103,7 @@ class ServiceRef:
         self._progress_events.set_interrupted()
 
     finally:
+      self._signal_handler.unbind_scan_job()
       with self._lock:
         self._is_scanning = False
         self._scan_job = None
