@@ -189,7 +189,7 @@ class TestIndex(unittest.TestCase):
       path="/The Analysis of the Transference.pdf",
       mtime=0,
     )
-    index.handle_event(added_event)
+    index.handle_event(added_event, lambda _: None)
     nodes, _ = index.query("identify", results_limit=1)
     self.assertEqual(len(nodes), 1)
     node = nodes[0]

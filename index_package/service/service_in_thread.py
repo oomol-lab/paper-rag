@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from dataclasses import dataclass
 
-from ..progress import Progress
+from ..progress_events import ProgressEventListener
 from .trimmer import trim_nodes, QueryItem
 from ..scanner import Event, Scope
 from ..parser import PdfParser
@@ -51,8 +51,8 @@ class ServiceInThread:
       return ""
     return pdf.pages[page_index].snapshot
 
-  def handle_event(self, event: Event, progress: Optional[Progress] = None):
-    self._index.handle_event(event, progress)
+  def handle_event(self, event: Event, listener: ProgressEventListener):
+    self._index.handle_event(event, listener)
 
   def close(self):
     self._pdf_parser.close()

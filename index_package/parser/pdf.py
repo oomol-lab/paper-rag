@@ -10,7 +10,7 @@ from typing import cast, Optional, Callable
 from dataclasses import dataclass
 
 from .pdf_extractor import extract_metadata_with_pdf, PdfExtractor, Annotation
-from ..progress import Progress
+from ..progress_events import PDFFileProgressEvent, PDFFileStep, ProgressEventListener
 from ..utils import hash_sha512, assert_continue, TempFolderHub, InterruptException
 
 @dataclass
@@ -139,14 +139,14 @@ class PdfParser:
     finally:
       cursor.close()
 
-  def pdf(self, hash: str, file_path: str, progress: Optional[Progress] = None) -> Pdf:
+  def pdf(self, hash: str, file_path: str, listener: ProgressEventListener) -> Pdf:
     cursor = self._conn.cursor()
     try:
       cursor.execute("SELECT id, meta FROM pdfs WHERE hash = ? LIMIT 1", (hash,))
       row = cursor.fetchone()
 
       if row is None:
-        pdf_id, metadata = self._create_and_split_pdf(cursor, hash, file_path, progress)
+        pdf_id, metadata = self._create_and_split_pdf(cursor, hash, file_path, listener)
       else:
         pdf_id, meta_json = row
         metadata = PdfMetadata(**json.loads(meta_json))
@@ -206,7 +206,7 @@ class PdfParser:
 
     return pdf_pages
 
-  def _create_and_split_pdf(self, cursor: sqlite3.Cursor, hash: str, file_path: str, progress: Optional[Progress]) -> tuple[int, PdfMetadata]:
+  def _create_and_split_pdf(self, cursor: sqlite3.Cursor, hash: str, file_path: str, listener: ProgressEventListener) -> tuple[int, PdfMetadata]:
     metadata = PdfMetadata(**extract_metadata_with_pdf(file_path))
     metadata_json = json.dumps(metadata.__dict__)
     added_page_hashes: list[str] = []
@@ -229,13 +229,17 @@ class PdfParser:
         assert_continue()
         self._extractor.extract_page(page_hash)
         self._listeners.on_page_added(page_hash)
-        if progress is not None:
-          pages_count = len(added_page_hashes)
-          progress.complete_handle_pdf_page(i, pages_count)
-
-      if progress is not None:
-          pages_count = len(added_page_hashes)
-          progress.complete_handle_pdf_page(pages_count, pages_count)
+        listener(PDFFileProgressEvent(
+          step=PDFFileStep.Parse,
+          completed=i + 1,
+          total=len(added_page_hashes),
+        ))
+      pages_count = len(added_page_hashes)
+      listener(PDFFileProgressEvent(
+        step=PDFFileStep.Parse,
+        completed=pages_count,
+        total=pages_count,
+        ))
 
       self._conn.commit()
       return pdf_id, metadata
