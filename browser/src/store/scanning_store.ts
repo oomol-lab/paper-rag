@@ -15,9 +15,11 @@ type Event = {
 } | {
   readonly kind: "startHandingFile";
   readonly path: string;
+  readonly operation: FileOperation;
 }| {
   readonly kind: "completeHandingFile";
   readonly path: string;
+  readonly operation: FileOperation;
 } | {
   readonly kind: "completeParsePdfPage";
   readonly index: number;
@@ -35,7 +37,7 @@ export type ScanningStore$ = {
   readonly phase: ReadonlyVal<ScanningPhase>;
   readonly scanCount: ReadonlyVal<number>;
   readonly handlingFile: ReadonlyVal<HandingFile | null>;
-  readonly completedFiles: ReadonlyVal<readonly string[]>;
+  readonly completedFiles: ReadonlyVal<readonly File[]>;
   readonly error: ReadonlyVal<string | null>;
   readonly isInterrupting: ReadonlyVal<boolean>;
   readonly isInterrupted: ReadonlyVal<boolean>;
@@ -49,8 +51,14 @@ export enum ScanningPhase {
   Completed,
 }
 
-export type HandingFile = {
+export type File = {
   readonly path: string;
+  readonly operation: FileOperation;
+};
+
+export type FileOperation = "create" | "update" | "remove";
+
+export type HandingFile = File & {
   readonly handlePdfPage?: {
     readonly index: number;
     readonly total: number;
@@ -68,7 +76,7 @@ export class ScanningStore {
   readonly #phase$: Val<ScanningPhase> = val(ScanningPhase.Ready);
   readonly #scanCount$: Val<number> = val(0);
   readonly #handlingFile$: Val<HandingFile | null> = val<HandingFile | null>(null);
-  readonly #completedFiles$: Val<readonly string[]> = val<readonly string[]>([]);
+  readonly #completedFiles$: Val<readonly File[]> = val<readonly File[]>([]);
   readonly #error$: Val<string | null> = val<string | null>(null);
   readonly #isInterrupting$: Val<boolean> = val(false);
   readonly #isInterrupted$: Val<boolean> = val(false);
@@ -138,14 +146,20 @@ export class ScanningStore {
           break;
         }
         case "startHandingFile": {
-          this.#handlingFile$.set({ path: event.path });
+          this.#handlingFile$.set({
+            path: event.path,
+            operation: event.operation,
+          });
           break;
         }
         case "completeHandingFile": {
           this.#handlingFile$.set(null);
           this.#completedFiles$.set([
             ...this.#completedFiles$.value,
-            event.path,
+            {
+              path: event.path,
+              operation: event.operation,
+            },
           ]);
           break;
         }

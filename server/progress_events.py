@@ -10,6 +10,7 @@ from index_package import (
   CompleteHandleFileEvent,
   PDFFileProgressEvent,
   PDFFileStep,
+  HandleFileOperation,
 )
 
 
@@ -27,8 +28,14 @@ class InterruptionStatus(IntEnum):
 @dataclass
 class HandingFile:
   path: str
+  operation: HandleFileOperation
   pdf_handing: tuple[int, int] | None = None
   pdf_indexing: tuple[int, int] | None = None
+
+@dataclass
+class File:
+  path: str
+  operation: HandleFileOperation
 
 class ProgressEvents:
   def __init__(self):
@@ -38,7 +45,7 @@ class ProgressEvents:
     self._handing_file: HandingFile | None = None
     self._error: str | None = None
     self._interruption_status: InterruptionStatus = InterruptionStatus.No
-    self._completed_files: list[str] = []
+    self._completed_files: list[File] = []
     self._fetcher_lock: Lock = Lock()
     self._fetcher_queues: list[Queue[dict]] = []
 
@@ -69,10 +76,11 @@ class ProgressEvents:
         "kind": "scanCompleted",
         "count": self._updated_files,
       })
-      for path in self._completed_files:
+      for file in self._completed_files:
         events.append({
           "kind": "completeHandingFile",
-          "path": path,
+          "path": file.path,
+          "operation": file.operation.value,
         })
       if self._phase == ProgressPhase.COMPLETED:
           events.append({ "kind": "completed" })
@@ -82,6 +90,7 @@ class ProgressEvents:
         events.append({
           "kind": "startHandingFile",
           "path": self._handing_file.path,
+          "operation": self._handing_file.operation.value,
         })
         if self._handing_file.pdf_handing is not None:
           index, total = self._handing_file.pdf_handing
@@ -114,7 +123,7 @@ class ProgressEvents:
     if isinstance(event, ScanCompletedEvent):
       self._on_scan_completed(event.updated_files)
     elif isinstance(event, StartHandleFileEvent):
-      self._on_start_handle_file(event.path)
+      self._on_start_handle_file(event.path, event.operation)
     elif isinstance(event, CompleteHandleFileEvent):
       self._on_complete_handle_file(event.path)
     elif isinstance(event, PDFFileProgressEvent):
@@ -133,25 +142,35 @@ class ProgressEvents:
       "count": updated_files,
     })
 
-  def _on_start_handle_file(self, path: str):
+  def _on_start_handle_file(self, path: str, operation: HandleFileOperation):
     with self._status_lock:
-      self._handing_file = HandingFile(path=path)
-
+      self._handing_file = HandingFile(
+        path=path,
+        operation=operation,
+      )
     self._emit_event({
       "kind": "startHandingFile",
       "path": path,
+      "operation": operation.value,
     })
 
   def _on_complete_handle_file(self, path: str):
+    file: File | None = None
     with self._status_lock:
-      self._completed_files.append(path)
       if self._handing_file is not None and self._handing_file.path == path:
+        file = File(
+          path=path,
+          operation=self._handing_file.operation,
+        )
+        self._completed_files.append(file)
         self._handing_file = None
 
-    self._emit_event({
-      "kind": "completeHandingFile",
-      "path": path,
-    })
+    if file is not None:
+      self._emit_event({
+        "kind": "completeHandingFile",
+        "path": file.path,
+        "operation": file.operation.value,
+      })
 
   def _on_pdf_parse_progress(self, page_index: int, total_pages: int):
     with self._status_lock:
