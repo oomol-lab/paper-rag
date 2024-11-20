@@ -23,8 +23,8 @@ export const Navigator: React.FC<{}> = () => {
             label: "知识库",
           },
           {
-            key: "searcher",
-            label: "搜索",
+            key: "query",
+            label: "查询",
           },
         ]} />
     </div>
