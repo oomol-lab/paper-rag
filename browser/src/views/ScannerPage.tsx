@@ -208,6 +208,7 @@ const ScanningPanel: React.FC<ScanningPanelProps> = ({ store }) => {
       <Result
         status="info"
         title="扫描中断"
+        subTitle="你可以继续使用知识库，但一些信息可能无法读取，另一些已失效的信息可能被错误读取。如果你希望知识库能正常运行，请继续扫描并等待完成。"
       />
     )}
   </>;

@@ -80,13 +80,13 @@ class ServiceRef:
         self._progress_events.fail(str(e))
         raise e
 
-      if not completed:
-        self._progress_events.set_interrupted()
-        return
-
       with self._lock:
         self._service = service
-      self._progress_events.complete()
+
+      if completed:
+        self._progress_events.complete()
+      else:
+        self._progress_events.set_interrupted()
 
     finally:
       with self._lock:
