@@ -101,8 +101,6 @@ class ServiceRef:
         self._progress_events.complete()
       else:
         self._progress_events.set_interrupted()
-        with self._app.test_client() as client:
-          client.post("/api/system/shutdown")
 
     finally:
       self._signal_handler.unbind_scan_job()
