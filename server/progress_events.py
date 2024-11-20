@@ -12,6 +12,11 @@ class ProgressPhase(IntEnum):
   HANDING_FILES = 2
   COMPLETED = 3
 
+class InterruptionStatus(IntEnum):
+  No = 0
+  Interrupting = 1
+  Interrupted = 2
+
 @dataclass
 class HandingFile:
   path: str
@@ -25,7 +30,7 @@ class ProgressEvents:
     self._scanned_count: int = 0
     self._handing_file: HandingFile | None = None
     self._error: str | None = None
-    self._is_interrupted: bool = False
+    self._interruption_status: InterruptionStatus = InterruptionStatus.No
     self._completed_files: list[str] = []
     self._fetcher_lock: Lock = Lock()
     self._fetcher_queues: list[Queue[dict]] = []
@@ -46,7 +51,7 @@ class ProgressEvents:
         self._scanned_count = 0
         self._handing_file = None
         self._error = None
-        self._is_interrupted = False
+        self._interruption_status = InterruptionStatus.No
         self._completed_files.clear()
       self._phase = ProgressPhase.SCANNING
 
@@ -101,7 +106,9 @@ class ProgressEvents:
           "kind": "failure",
           "error": self._error or "",
         })
-      elif self._is_interrupted:
+      elif self._interruption_status == InterruptionStatus.Interrupting:
+        events.append({ "kind": "interrupting" })
+      elif self._interruption_status == InterruptionStatus.Interrupted:
         events.append({ "kind": "interrupted" })
 
       return events
@@ -167,9 +174,16 @@ class ProgressEvents:
       "kind": "completed",
     })
 
-  def interrupt(self):
+  def set_interrupting(self):
     with self._status_lock:
-      self._is_interrupted = True
+      if self._interruption_status == InterruptionStatus.No:
+        self._interruption_status = InterruptionStatus.Interrupting
+
+    self._emit_event({ "kind": "interrupting" })
+
+  def set_interrupted(self):
+    with self._status_lock:
+      self._interruption_status = InterruptionStatus.Interrupted
 
     self._emit_event({ "kind": "interrupted" })
 

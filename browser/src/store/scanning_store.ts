@@ -2,7 +2,13 @@ import { val, derive, combine, Val, ReadonlyVal } from "value-enhancer";
 import { fetchJson, fetchJsonEvents, EventFetcher } from "../utils";
 
 type Event = {
-  readonly kind: "scanning" | "completed" | "interrupted" | "heartbeat";
+  readonly kind: (
+    "scanning" |
+    "completed" |
+    "interrupting" |
+    "interrupted" |
+    "heartbeat"
+  );
 } | {
   readonly kind: "scanCompleted";
   readonly count: number;
@@ -31,6 +37,7 @@ export type ScanningStore$ = {
   readonly handlingFile: ReadonlyVal<HandingFile | null>;
   readonly completedFiles: ReadonlyVal<readonly string[]>;
   readonly error: ReadonlyVal<string | null>;
+  readonly isInterrupting: ReadonlyVal<boolean>;
   readonly isInterrupted: ReadonlyVal<boolean>;
   readonly isScanning: ReadonlyVal<boolean>;
 };
@@ -63,6 +70,7 @@ export class ScanningStore {
   readonly #handlingFile$: Val<HandingFile | null> = val<HandingFile | null>(null);
   readonly #completedFiles$: Val<readonly string[]> = val<readonly string[]>([]);
   readonly #error$: Val<string | null> = val<string | null>(null);
+  readonly #isInterrupting$: Val<boolean> = val(false);
   readonly #isInterrupted$: Val<boolean> = val(false);
 
   public constructor() {
@@ -73,6 +81,7 @@ export class ScanningStore {
       handlingFile: derive(this.#handlingFile$),
       completedFiles: derive(this.#completedFiles$),
       error: derive(this.#error$),
+      isInterrupting: derive(this.#isInterrupting$),
       isInterrupted: derive(this.#isInterrupted$),
       isScanning: combine(
         [this.#phase$, this.#error$, this.#isInterrupted$],
@@ -168,7 +177,12 @@ export class ScanningStore {
           this.#error$.set(event.error);
           break;
         }
+        case "interrupting": {
+          this.#isInterrupting$.set(true);
+          break;
+        }
         case "interrupted": {
+          this.#isInterrupting$.set(false);
           this.#isInterrupted$.set(true);
           break;
         }

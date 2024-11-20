@@ -49,6 +49,7 @@ type ScannerProps = {
 const Scanner: React.FC<ScannerProps> = ({ store }) => {
   const scanningStore = store.scanningStore;
   const isScanning = useVal(scanningStore.$.isScanning);
+  const isInterrupting = useVal(scanningStore.$.isInterrupting);
   const onClickScan = React.useCallback(
     () => scanningStore.scan(),
     [scanningStore],
@@ -80,6 +81,8 @@ const Scanner: React.FC<ScannerProps> = ({ store }) => {
         shape="round"
         size="large"
         className={styles["scan-button"]}
+        disabled={isInterrupting}
+        loading={isInterrupting}
         icon={<PauseOutlined />}
         onClick={onClickInterrupt} >
         中 断

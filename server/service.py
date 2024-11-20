@@ -30,7 +30,8 @@ class ServiceRef:
     return self._sources
 
   def interrupt_scanning(self):
-    scan_job = self._get_scan_job()
+    self._progress_events.set_interrupting()
+    scan_job = self._take_scan_job()
     if scan_job is not None:
       scan_job.interrupt()
 
@@ -80,7 +81,7 @@ class ServiceRef:
         raise e
 
       if not completed:
-        self._progress_events.interrupt()
+        self._progress_events.set_interrupted()
         return
 
       with self._lock:
@@ -92,15 +93,19 @@ class ServiceRef:
         self._is_scanning = False
         self._scan_job = None
 
-  def _get_scan_job(self) -> ServiceScanJob | None:
+  def _take_scan_job(self) -> ServiceScanJob | None:
     event: Event
     with self._lock:
       if self._scan_job is not None:
-        return self._scan_job
+        scan_job = self._scan_job
+        self._scan_job = None
+        return scan_job
       if self._scan_job_event is None:
         return None
       event = self._scan_job_event
 
     event.wait()
     with self._lock:
-      return self._scan_job
+      scan_job = self._scan_job
+      self._scan_job = None
+      return scan_job
