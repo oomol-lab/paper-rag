@@ -1,6 +1,7 @@
 from threading import Thread, Lock, Event
 from typing import Generator
 from json import dumps
+from flask import Flask
 from index_package import Service, ServiceScanJob
 from .sources import Sources
 from .progress_events import ProgressEvents
@@ -8,10 +9,16 @@ from .signal_handler import SignalHandler
 
 
 class ServiceRef:
-  def __init__(self, workspace_path: str, embedding_model: str, sources: Sources):
+  def __init__(self,
+      app: Flask,
+      sources: Sources,
+      workspace_path: str,
+      embedding_model: str,
+    ):
+    self._app: Flask = app
+    self._sources: Sources = sources
     self._workspace_path: str = workspace_path
     self._embedding_model: str = embedding_model
-    self._sources: Sources = sources
     self._lock: Lock = Lock()
     self._service: Service | None = None
     self._is_scanning: bool = False
@@ -94,7 +101,8 @@ class ServiceRef:
         self._progress_events.complete()
       else:
         self._progress_events.set_interrupted()
-        self._signal_handler.notify_scanning_done()
+        with self._app.test_client() as client:
+          client.post("/api/system/shutdown")
 
     finally:
       self._signal_handler.unbind_scan_job()

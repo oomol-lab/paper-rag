@@ -18,10 +18,6 @@ class SignalHandler:
     with self._lock:
       return self._first_interrupted_at is not None
 
-  def notify_scanning_done(self):
-    time.sleep(0.5)
-    sys.exit()
-
   # return False when is interrupting
   def bind_scan_job(self, scan_job: ServiceScanJob) -> bool:
     with self._lock:

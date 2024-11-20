@@ -1,4 +1,5 @@
 import os
+import sys
 
 from .service import ServiceRef
 from flask import (
@@ -83,6 +84,12 @@ def routes(app: Flask, service: ServiceRef):
       raise ValueError("Invalid name")
     service.sources.remove(name)
     return jsonify(None), 204
+
+  @app.route("/api/system/shutdown", methods=["POST"])
+  def post_system_shutdown():
+    print("call /api/system/shutdown")
+    sys.exit(0)
+    return jsonify(None), 201
 
   @app.errorhandler(404)
   def page_not_found(e):
