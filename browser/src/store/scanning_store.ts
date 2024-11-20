@@ -19,7 +19,7 @@ type Event = {
   readonly kind: "completeHandingFile";
   readonly path: string;
 } | {
-  readonly kind: "completeHandingPdfPage";
+  readonly kind: "completeParsePdfPage";
   readonly index: number;
   readonly total: number;
 } | {
@@ -149,7 +149,7 @@ export class ScanningStore {
           ]);
           break;
         }
-        case "completeHandingPdfPage": {
+        case "completeParsePdfPage": {
           this.#handlingFile$.set({
             ...this.#handlingFile$.value!,
             handlePdfPage: {

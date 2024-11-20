@@ -3,7 +3,14 @@ from typing import Generator
 from enum import IntEnum
 from threading import Lock
 from queue import Queue, Empty
-from index_package import ProgressListeners
+from index_package import (
+  ProgressEvent,
+  ScanCompletedEvent,
+  StartHandleFileEvent,
+  CompleteHandleFileEvent,
+  PDFFileProgressEvent,
+  PDFFileStep,
+)
 
 
 class ProgressPhase(IntEnum):
@@ -27,7 +34,7 @@ class ProgressEvents:
   def __init__(self):
     self._phase: ProgressPhase = ProgressPhase.READY
     self._status_lock: Lock = Lock()
-    self._scanned_count: int = 0
+    self._updated_files: int = 0
     self._handing_file: HandingFile | None = None
     self._error: str | None = None
     self._interruption_status: InterruptionStatus = InterruptionStatus.No
@@ -35,20 +42,10 @@ class ProgressEvents:
     self._fetcher_lock: Lock = Lock()
     self._fetcher_queues: list[Queue[dict]] = []
 
-  @property
-  def listeners(self) -> ProgressListeners:
-    return ProgressListeners(
-      after_scan=self._on_after_scan,
-      on_start_handle_file=self._on_start_handle_file,
-      on_complete_handle_pdf_page=self._on_complete_handle_pdf_page,
-      on_complete_index_pdf_page=self._on_complete_index_pdf_page,
-      on_complete_handle_file=self._on_complete_handle_file,
-    )
-
   def notify_scanning(self):
     with self._status_lock:
       if self._phase != ProgressPhase.READY:
-        self._scanned_count = 0
+        self._updated_files = 0
         self._handing_file = None
         self._error = None
         self._interruption_status = InterruptionStatus.No
@@ -70,7 +67,7 @@ class ProgressEvents:
       events: list[dict] = []
       events.append({
         "kind": "scanCompleted",
-        "count": self._scanned_count,
+        "count": self._updated_files,
       })
       for path in self._completed_files:
         events.append({
@@ -89,7 +86,7 @@ class ProgressEvents:
         if self._handing_file.pdf_handing is not None:
           index, total = self._handing_file.pdf_handing
           events.append({
-            "kind": "completeHandingPdfPage",
+            "kind": "completeParsePdfPage",
             "index": index,
             "total": total,
           })
@@ -113,14 +110,27 @@ class ProgressEvents:
 
       return events
 
-  def _on_after_scan(self, count: int):
+  def receive_event(self, event: ProgressEvent):
+    if isinstance(event, ScanCompletedEvent):
+      self._on_scan_completed(event.updated_files)
+    elif isinstance(event, StartHandleFileEvent):
+      self._on_start_handle_file(event.path)
+    elif isinstance(event, CompleteHandleFileEvent):
+      self._on_complete_handle_file(event.path)
+    elif isinstance(event, PDFFileProgressEvent):
+      if event.step == PDFFileStep.Parse:
+        self._on_pdf_parse_progress(event.completed, event.total)
+      elif event.step == PDFFileStep.Index:
+        self._on_pdf_index_progress(event.completed, event.total)
+
+  def _on_scan_completed(self, updated_files: int):
     with self._status_lock:
       self._phase = ProgressPhase.HANDING_FILES
-      self._scanned_count = count
+      self._updated_files = updated_files
 
     self._emit_event({
       "kind": "scanCompleted",
-      "count": count,
+      "count": updated_files,
     })
 
   def _on_start_handle_file(self, path: str):
@@ -143,18 +153,18 @@ class ProgressEvents:
       "path": path,
     })
 
-  def _on_complete_handle_pdf_page(self, page_index: int, total_pages: int):
+  def _on_pdf_parse_progress(self, page_index: int, total_pages: int):
     with self._status_lock:
       if self._handing_file is not None:
         self._handing_file.pdf_handing = (page_index, total_pages)
 
     self._emit_event({
-      "kind": "completeHandingPdfPage",
+      "kind": "completeParsePdfPage",
       "index": page_index,
       "total": total_pages,
     })
 
-  def _on_complete_index_pdf_page(self, page_index: int, total_pages: int):
+  def _on_pdf_index_progress(self, page_index: int, total_pages: int):
     with self._status_lock:
       if self._handing_file is not None:
         self._handing_file.pdf_indexing = (page_index, total_pages)
