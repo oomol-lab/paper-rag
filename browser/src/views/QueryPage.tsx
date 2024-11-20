@@ -93,6 +93,10 @@ const PDFPageCard: React.FC<PDFPageCardProps> = ({ item }) => {
           key: "2",
           label: "距离",
           children: distance,
+        }, {
+          key: "3",
+          label: "匹配片段",
+          children: segments.length,
         }]} />
       <Text
         className={styles.text}
