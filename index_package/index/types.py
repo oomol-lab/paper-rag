@@ -26,5 +26,7 @@ class IndexSegment:
 @dataclass
 class PageRelativeToPDF:
   pdf_hash: str
-  pdf_path: str
+  scope: str
+  path: str
+  device_path: str
   page_index: int

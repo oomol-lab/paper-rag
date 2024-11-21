@@ -15,7 +15,7 @@ export const Navigator: React.FC<{}> = () => {
   const onChange = React.useCallback(
     (activeKey: string) => {
       if (activeKey === "query" && lastQueryText !== null) {
-        navigate(`/query?${new URLSearchParams({ query: lastQueryText }) }`);
+        navigate(`/query?${new URLSearchParams({ query: lastQueryText })}`);
       } else {
         navigate("/" + activeKey);
       }

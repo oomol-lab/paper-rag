@@ -23,7 +23,9 @@ QueryItem = Union[PdfQueryItem, PageQueryItem]
 
 @dataclass
 class PagePDFFile:
-  pdf_path: str
+  scope: str
+  path: str
+  device_path: str
   page_index: int
 
 @dataclass
@@ -109,7 +111,9 @@ def _trim_page_and_child_type(
     )
     for relative_to in index.get_page_relative_to_pdf(page.hash):
       page_item.pdf_files.append(PagePDFFile(
-        pdf_path=relative_to.pdf_path,
+        scope=relative_to.scope,
+        path=relative_to.path,
+        device_path=relative_to.device_path,
         page_index=relative_to.page_index,
       ))
     page_items_dict[page.hash] = page_item

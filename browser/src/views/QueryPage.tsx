@@ -168,7 +168,9 @@ const PDFPageCard: React.FC<PDFPageCardProps> = ({ item }) => {
             pdf_files.map((pdf, index) => (
               <PDFTagLink
                 key={`${index}`}
-                path={pdf.pdf_path}
+                scope={pdf.scope}
+                scopePath={pdf.path}
+                devicePath={pdf.device_path}
                 page={pdf.page_index} />
             ))
           } />

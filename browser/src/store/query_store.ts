@@ -28,7 +28,9 @@ export type PDFMetadataItem = {
 
 export type PDFPageItem = {
   readonly pdf_files: readonly {
-    readonly pdf_path: string;
+    readonly scope: string;
+    readonly path: string;
+    readonly device_path: string;
     readonly page_index: number;
   }[];
   readonly distance: number;

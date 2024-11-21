@@ -116,11 +116,13 @@ class Index:
       cursor.execute("SELECT scope, path FROM files WHERE hash = ?", (pdf_hash,))
       for row in cursor.fetchall():
         scope, path = row
-        scope_path = self._get_abs_path(scope, path)
-        if scope_path is not None:
+        device_path = self._get_abs_path(scope, path)
+        if device_path is not None:
           pages.append(PageRelativeToPDF(
             pdf_hash=pdf_hash,
-            pdf_path=scope_path,
+            scope=scope,
+            path=path,
+            device_path=device_path,
             page_index=page_index,
           ))
 

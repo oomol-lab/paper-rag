@@ -5,12 +5,14 @@ import { Tag, Tooltip } from "antd";
 import { FilePdfFilled } from "@ant-design/icons";
 
 export type PDFTagLinkProps = {
-  readonly path: string;
+  readonly scope: string;
+  readonly scopePath: string;
+  readonly devicePath: string;
   readonly page: number;
 };
 
-export const PDFTagLink: React.FC<PDFTagLinkProps> = ({ path, page }) => {
-  const fileNames = path.split(/[/\\]/);
+export const PDFTagLink: React.FC<PDFTagLinkProps> = ({ scope, scopePath, devicePath, page }) => {
+  const fileNames = devicePath.split(/[/\\]/);
   const fileName = fileNames[fileNames.length - 1];
   if (!fileName) {
     return null;
@@ -20,11 +22,12 @@ export const PDFTagLink: React.FC<PDFTagLinkProps> = ({ path, page }) => {
     <Tag
       icon={<FilePdfFilled color="#FFFFFF" />}
       color="#FF5502">
-      <Tooltip title={path}>
+      <Tooltip title={devicePath}>
         <a
           className={styles["pdf-a"]}
-          href={`file://${path}`}
-          download>
+          href={`/files/${scope}${scopePath}#page=${page + 1}`}
+          type="application/pdf"
+          target="_blank">
           {fileNameWithoutExt}
         </a>
       </Tooltip>

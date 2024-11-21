@@ -48,6 +48,9 @@ class Service:
   def page_content(self, pdf_hash: str, page_index: int) -> str:
     return self._get_service_in_thread().page_content(pdf_hash, page_index)
 
+  def device_path(self, scope: str, path: str) -> Optional[str]:
+    return self._get_service_in_thread().device_path(scope, path)
+
   def scan_job(self, max_workers: int = 1, progress_event_listener: Optional[ProgressEventListener] = None) -> ServiceScanJob:
     if progress_event_listener is None:
       progress_event_listener = lambda _: None
