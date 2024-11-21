@@ -7,6 +7,7 @@ export type QueryStore$ = {
   readonly items: ReadonlyVal<(readonly QueryItem[]) | null>;
   readonly keywords: ReadonlyVal<readonly QueryKeyword[]>;
   readonly lastQueryText: ReadonlyVal<string | null>;
+  readonly resultsLimit: Val<number | null>;
 };
 
 export type QueryItem = PDFMetadataItem | PDFPageItem;
@@ -59,12 +60,16 @@ export class QueryStore {
   readonly #queryResult$: Val<QueryResult | null> = val<QueryResult | null>(null);
   readonly #checkedTags$: Val<Set<string>> = val<Set<string>>(new Set());
   readonly #lastQueryText: Val<string | null> = val<string | null>(null);
+  readonly #resultsLimit: Val<number | null> = val<number | null>(10);
+
+  #lastResultsLimit: number = -1;
 
   public constructor() {
     this.$ = {
       isQuerying: derive(this.#isQuerying$),
       items: derive(this.#queryResult$, r => r?.items ?? null),
       lastQueryText: derive(this.#lastQueryText),
+      resultsLimit: this.#resultsLimit,
       keywords: combine(
         [this.#queryResult$, this.#checkedTags$],
         ([result, checkedTags]) => {
@@ -96,13 +101,17 @@ export class QueryStore {
     this.#checkedTags$.set(checkedTags);
   }
 
-  public query(text: string): void {
-    if (this.#lastQueryText.value === text) {
+  public query(text: string, resultsLimit: number): void {
+    if (this.#lastQueryText.value === text &&
+        this.#lastResultsLimit === resultsLimit) {
       return;
     }
-    const query = new URLSearchParams({ query: text });
-
+    const query = new URLSearchParams({
+      query: text,
+      resultsLimit: `${resultsLimit}`,
+    });
     this.#lastQueryText.set(text);
+    this.#lastResultsLimit = resultsLimit;
     this.#isQuerying$.set(true);
 
     fetchJson<QueryResult>(`/api/query?${query}`)
@@ -123,6 +132,7 @@ export class QueryStore {
     this.#queryResult$.set(null);
     this.#checkedTags$.set(new Set());
     this.#lastQueryText.set(null);
+    this.#lastResultsLimit = -1;
   }
 
 }

@@ -32,15 +32,15 @@ def routes(app: Flask, service: ServiceRef):
   @app.route("/api/query", methods=["GET"])
   def get_query():
     query = request.args.get("query", "")
-    results_limit = request.args.get("resultsLimit", None)
+    results_limit = request.args.get("resultsLimit", "")
     if query == "":
       raise ValueError("Invalid query")
-    if results_limit is not None:
-      results_limit = int(results_limit)
+    if results_limit == "":
+      raise ValueError("Invalid resultsLimit")
 
     result = service.ref.query(
       text=query,
-      results_limit=results_limit,
+      results_limit=int(results_limit),
     )
     return jsonify(result)
 

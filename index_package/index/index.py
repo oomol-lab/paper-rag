@@ -137,11 +137,8 @@ class Index:
   def query(
     self,
     query_text: str,
-    results_limit: Optional[int] = None,
+    results_limit: int,
     to_keywords: bool = True) -> tuple[list[IndexNode], list[str]]:
-
-    if results_limit is None:
-      results_limit = 10
 
     if to_keywords:
       keywords = self._segmentation.to_keywords(query_text)

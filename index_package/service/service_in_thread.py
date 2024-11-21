@@ -40,7 +40,7 @@ class ServiceInThread:
       segmentation=segmentation,
     )
 
-  def query(self, text: str, results_limit: Optional[int]) -> QueryResult:
+  def query(self, text: str, results_limit: int) -> QueryResult:
     nodes, keywords = self._index.query(text, results_limit)
     trimmed_nodes = trim_nodes(self._index, self._pdf_parser, nodes)
     return QueryResult(trimmed_nodes, keywords)

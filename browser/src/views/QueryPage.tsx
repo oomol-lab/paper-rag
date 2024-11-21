@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./QueryPage.module.less";
 
-import { Tag, Empty, Skeleton, Input, List } from "antd";
+import { Tag, Empty, Skeleton, Input, List, InputNumber } from "antd";
 import { useVal } from "use-value-enhancer";
 import { useSearchParams } from "react-router-dom";
 import { PDFPageItem, QueryItem } from "../store";
@@ -16,32 +16,6 @@ export const QueryPage: React.FC<{}> = () => {
   const store = React.useContext(context).queryStore;
   const isQuerying = useVal(store.$.isQuerying);
   const items = useVal(store.$.items);
-  const [searchParams, setSearchParams] = useSearchParams();
-  let query: string | null | undefined = searchParams.get("query");
-
-  if (typeof query !== "string" || query.trim() === "") {
-    query = undefined;
-  }
-  React.useEffect(
-    () => {
-      if (typeof query === "string") {
-        store.query(query);
-      } else {
-        store.cleanQuery();
-      }
-    },
-    [store, query],
-  );
-  const onSearch = React.useCallback(
-    (query: string) => {
-      if (query.trim() === "") {
-        setSearchParams({});
-      } else {
-        setSearchParams({ query });
-      }
-    },
-    [setSearchParams],
-  );
   let tailView: React.ReactNode = null;
 
   if (isQuerying) {
@@ -53,14 +27,68 @@ export const QueryPage: React.FC<{}> = () => {
   }
   return (
     <div className={styles.root}>
-      <div className={styles["query-box"]}>
-        <Search
-          placeholder="输入你要搜索的内容"
-          defaultValue={query}
-          allowClear
-          onSearch={onSearch} />
-      </div>
+      <QueryBox />
       {tailView}
+    </div>
+  );
+};
+
+const QueryBox: React.FC<{}> = () => {
+  const store = React.useContext(context).queryStore;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resultsLimit = useVal(store.$.resultsLimit);
+  const isValidResultsLimit = resultsLimit !== null;
+  const onResultsLimitChanged = React.useCallback(
+    (value: number | null) => store.$.resultsLimit.set(value),
+    [store],
+  );
+  let query: string | null | undefined = searchParams.get("query");
+
+  React.useEffect(
+    () => queryIfNeed(query, resultsLimit),
+    [store],
+  );
+  const queryIfNeed = React.useCallback(
+    (query: string | null | undefined, resultsLimit: number | null) => {
+      if (resultsLimit !== null) {
+        if (typeof query !== "string" || query.trim() === "") {
+          store.cleanQuery();
+        } else {
+          store.query(query, resultsLimit);
+        }
+      }
+    },
+    [store],
+  );
+  const onSearch = React.useCallback(
+    (query: string) => {
+      if (query.trim() === "") {
+        setSearchParams({});
+      } else {
+        setSearchParams({ query });
+      }
+      queryIfNeed(query, resultsLimit);
+    },
+    [setSearchParams, resultsLimit],
+  );
+  return (
+    <div className={styles["query-box"]}>
+      <Search
+        className={styles["query-searcher"]}
+        placeholder="输入你要搜索的内容"
+        defaultValue={query ?? ""}
+        allowClear
+        disabled={!isValidResultsLimit}
+        onSearch={onSearch} />
+      <InputNumber
+        className={styles["query-limit"]}
+        addonBefore="前"
+        addonAfter="个结果"
+        min={1}
+        max={100}
+        value={resultsLimit}
+        status={isValidResultsLimit ? undefined : "warning"}
+        onChange={onResultsLimitChanged} />
     </div>
   );
 };

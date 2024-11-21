@@ -42,7 +42,7 @@ class Service:
       ),
     )
 
-  def query(self, text: str, results_limit: Optional[int]) -> QueryResult:
+  def query(self, text: str, results_limit: int) -> QueryResult:
     return self._get_service_in_thread().query(text, results_limit)
 
   def page_content(self, pdf_hash: str, page_index: int) -> str:
