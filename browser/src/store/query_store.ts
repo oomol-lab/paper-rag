@@ -111,4 +111,10 @@ export class QueryStore {
         this.#isQuerying$.set(false);
       });
   }
+
+  public cleanQuery(): void {
+    this.#queryResult$.set(null);
+    this.#checkedTags$.set(new Set());
+  }
+
 }
