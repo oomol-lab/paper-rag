@@ -3,8 +3,9 @@ import styles from "./QueryPage.module.less";
 
 import { Tag, Empty, Skeleton, Input, Divider, Descriptions } from "antd";
 import { useVal } from "use-value-enhancer";
-import { PDFPageItem, QueryResult, QueryStore } from "../store";
+import { PDFPageItem, QueryItem, QueryKeyword, QueryStore } from "../store";
 import { PDFTagLink } from "./Link";
+import { HighlightProvider } from "./HighlightTag";
 import { Text } from "./Text";
 
 const { Search } = Input;
@@ -12,7 +13,8 @@ const { Search } = Input;
 export const QueryPage: React.FC<{}> = () => {
   const store = React.useMemo(() => new QueryStore(), []);
   const isQuerying = useVal(store.$.isQuerying);
-  const queryResults = useVal(store.$.queryResult);
+  const items = useVal(store.$.items);
+  const keywords = useVal(store.$.keywords);
   const onSearch = React.useCallback(
     (query: string) => store.query(query),
     [],
@@ -21,8 +23,13 @@ export const QueryPage: React.FC<{}> = () => {
 
   if (isQuerying) {
     tailView = <Skeleton active />;
-  } else if (queryResults) {
-    tailView = <ResultDisplay result={queryResults} />;
+  } else if (items) {
+    tailView = (
+      <ResultDisplay
+        store={store}
+        items={items}
+        keywords={keywords} />
+    );
   }
   return <>
     <div className={styles["query-box"]}>
@@ -39,33 +46,58 @@ export const QueryPage: React.FC<{}> = () => {
 };
 
 type ResultDisplayProps = {
-  readonly result: QueryResult;
+  readonly store: QueryStore;
+  readonly items: readonly QueryItem[];
+  readonly keywords: readonly QueryKeyword[];
 };
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ result }) => {
-  const { keywords, items } = result;
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords }) => {
   return (
     <div className={styles["query-result-box"]}>
-      <div className={styles["keywords-bar"]}>
-        <label>关键词：</label>
-        {keywords.map((keyword, index) => (
-          <Tag key={`${index}`}>{keyword}</Tag>
-        ))}
-      </div>
-      {items.length === 0 && (
-        <Empty
-          className={styles.empty}
-          description="没有搜索到内容" />
-      )}
-      {items.map((item, index) => {
-        if (!("content" in item)) {
-          // TODO: 对 PDF Metadata 本身的搜索
-          return null;
-        }
-        return (
-          <PDFPageCard key={`${index}`} item={item} />
-        );
-      })}
+      <Keywords
+        store={store}
+        keywords={keywords} />
+      <HighlightProvider keywords={keywords}>
+        {items.length === 0 && (
+          <Empty
+            className={styles.empty}
+            description="没有搜索到内容" />
+        )}
+        {items.map((item, index) => {
+          if (!("content" in item)) {
+            // TODO: 对 PDF Metadata 本身的搜索
+            return null;
+          }
+          return (
+            <PDFPageCard key={`${index}`} item={item} />
+          );
+        })}
+      </HighlightProvider>
+    </div>
+  );
+};
+
+type KeywordsProps = {
+  readonly store: QueryStore;
+  readonly keywords: readonly QueryKeyword[];
+};
+
+const Keywords: React.FC<KeywordsProps> = ({ store, keywords }) => {
+  const onChangeTag = React.useCallback(
+    (name: string, checked: boolean) => store.checkTag(name, checked),
+    [store],
+  );
+  return (
+    <div className={styles["keywords-bar"]}>
+      <label>关键词：</label>
+      {keywords.map((keyword, index) => (
+        <Tag.CheckableTag
+          key={`${index}`}
+          checked={keyword.checked}
+          onChange={checked => onChangeTag(keyword.name, checked)} >
+          {keyword.name}
+        </Tag.CheckableTag>
+      ))}
     </div>
   );
 };

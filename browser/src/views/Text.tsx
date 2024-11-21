@@ -2,6 +2,7 @@ import React from "react";
 import styles from "./Text.module.less";
 
 import { HighlightSegment } from "../store";
+import { HighlightTag } from "./HighlightTag";
 
 export type TextProps = React.HTMLAttributes<HTMLDivElement> & {
   readonly content: string;
@@ -17,9 +18,9 @@ enum SegmentKind {
 export const Text: React.FC<TextProps> = ({ content, segments, ...rest }) => {
   const dyeing = new Dyeing(content);
   for (const { start, end, highlights } of segments) {
-    dyeing.dye(start, end - start, SegmentKind.Chunk);
+    dyeing.dye(start, end - start, SegmentKind.Chunk, false);
     for (const [hStart, hEnd] of highlights) {
-      dyeing.dye(start + hStart, hEnd - hStart, SegmentKind.Highlight);
+      dyeing.dye(start + hStart, hEnd - hStart, SegmentKind.Highlight, true);
     }
   }
   return (
@@ -69,11 +70,12 @@ const TextLine: React.FC<TextLineProps> = ({ fragments }) => (
         }
         case SegmentKind.Highlight: {
           return (
-            <span
+            <HighlightTag
               key={`${i}`}
-              className={styles.highlight}>
+              keyword={fragment.keyword!}
+              className={styles.chunk}>
               {fragment.content}
-            </span>
+            </HighlightTag>
           );
         }
       }
@@ -85,6 +87,7 @@ type Fragment = {
   readonly content: string;
   readonly offset: number;
   readonly color: number;
+  readonly keyword: string | null;
 };
 
 enum Splitter {
@@ -96,10 +99,10 @@ class Dyeing {
   #fragments: readonly Fragment[];
 
   public constructor(content: string) {
-    this.#fragments = [{ content, offset: 0, color: 0 }];
+    this.#fragments = [{ content, offset: 0, color: 0, keyword: null }];
   }
 
-  public dye(offset: number, length: number, color: number): void {
+  public dye(offset: number, length: number, color: number, markKeyword: boolean): void {
     const newFragments: Fragment[] = [];
 
     for (const fragment of this.#fragments) {
@@ -124,13 +127,19 @@ class Dyeing {
           content: fragment.content.slice(0, fragmentBegin - fragment.offset),
           offset: fragment.offset,
           color: fragment.color,
+          keyword: fragment.keyword,
         });
       }
 
+      let newKeyword = fragment.keyword;
+      if (markKeyword) {
+        newKeyword = newContent.replace(/[\s\n\r\x00-\x1F\x7F]+/g, "").trim();
+      }
       newFragments.push({
         content: newContent,
         offset: fragmentBegin,
         color,
+        keyword: newKeyword,
       });
 
       if (fragmentEnd < fragment.offset + fragment.content.length) {
@@ -138,6 +147,7 @@ class Dyeing {
           content: fragment.content.slice(fragmentEnd - fragment.offset),
           offset: fragmentEnd,
           color: fragment.color,
+          keyword: fragment.keyword,
         });
       }
     }
@@ -185,6 +195,7 @@ class Dyeing {
           yield {
             content: cells[i].trim(),
             color: fragment.color,
+            keyword: fragment.keyword,
           }
         }
         if (i < cells.length - 1) {
