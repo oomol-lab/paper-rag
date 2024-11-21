@@ -3,32 +3,15 @@ import styles from "./ScannerPage.module.less";
 
 import { Skeleton, Result, Steps, List, Button, Divider, Progress, Typography } from "antd";
 import { ScanOutlined, ProfileTwoTone, SyncOutlined, FilePdfTwoTone, PauseOutlined } from "@ant-design/icons";
-import { val } from "value-enhancer";
 import { useVal } from "use-value-enhancer";
-import { ScannerStore, ScanningStore, ScanningPhase, FileOperation } from "../store";
+import { ScanningStore, ScanningPhase, FileOperation } from "../store";
 import { Sources } from "./Sources";
+import { context } from "./StoreContext";
 
 const { Title, Paragraph } = Typography;
 
 export const ScannerPage: React.FC = () => {
-  const store$ = React.useMemo(() => val<ScannerStore | null>(null), []);
-  const store = useVal(store$);
-  React.useEffect(
-    () => {
-      let shouldClose = false;
-      ScannerStore.load().then((store) => {
-        if (shouldClose) {
-          store.close();
-        }
-        store$.set(store);
-      });
-      return () => {
-        shouldClose = true;
-        store$.value?.close();
-      };
-    },
-    [store$],
-  );
+  const store = React.useContext(context).scannerStore;
   if (!store) {
     return <Skeleton active />;
   }
@@ -36,27 +19,26 @@ export const ScannerPage: React.FC = () => {
     <div className={styles.root}>
       <Sources store={store} />
       <Divider />
-      <Scanner store={store} />
+      <Scanner store={store.scanningStore} />
       <ScanningPanel store={store.scanningStore} />
     </div>
   );
 };
 
 type ScannerProps = {
-  readonly store: ScannerStore;
+  readonly store: ScanningStore;
 };
 
 const Scanner: React.FC<ScannerProps> = ({ store }) => {
-  const scanningStore = store.scanningStore;
-  const isScanning = useVal(scanningStore.$.isScanning);
-  const isInterrupting = useVal(scanningStore.$.isInterrupting);
+  const isScanning = useVal(store.$.isScanning);
+  const isInterrupting = useVal(store.$.isInterrupting);
   const onClickScan = React.useCallback(
-    () => scanningStore.scan(),
-    [scanningStore],
+    () => store.scan(),
+    [store],
   );
   const onClickInterrupt = React.useCallback(
-    () => scanningStore.interrupt(),
-    [scanningStore],
+    () => store.interrupt(),
+    [store],
   );
   return <>
     <Typography>

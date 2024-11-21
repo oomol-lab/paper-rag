@@ -4,7 +4,8 @@ import styles from "./QueryPage.module.less";
 import { Tag, Empty, Skeleton, Input, List } from "antd";
 import { useVal } from "use-value-enhancer";
 import { useSearchParams } from "react-router-dom";
-import { PDFPageItem, QueryItem, QueryKeyword, QueryStore } from "../store";
+import { PDFPageItem, QueryItem } from "../store";
+import { context } from "./StoreContext";
 import { PDFTagLink } from "./Link";
 import { HighlightProvider } from "./HighlightTag";
 import { Text } from "./Text";
@@ -12,10 +13,9 @@ import { Text } from "./Text";
 const { Search } = Input;
 
 export const QueryPage: React.FC<{}> = () => {
-  const store = React.useMemo(() => new QueryStore(), []);
+  const store = React.useContext(context).queryStore;
   const isQuerying = useVal(store.$.isQuerying);
   const items = useVal(store.$.items);
-  const keywords = useVal(store.$.keywords);
   const [searchParams, setSearchParams] = useSearchParams();
   let query: string | null | undefined = searchParams.get("query");
 
@@ -48,10 +48,7 @@ export const QueryPage: React.FC<{}> = () => {
     tailView = <Skeleton active />;
   } else if (items) {
     tailView = (
-      <ResultDisplay
-        store={store}
-        items={items}
-        keywords={keywords} />
+      <ResultDisplay items={items} />
     );
   }
   return (
@@ -69,16 +66,14 @@ export const QueryPage: React.FC<{}> = () => {
 };
 
 type ResultDisplayProps = {
-  readonly store: QueryStore;
   readonly items: readonly QueryItem[];
-  readonly keywords: readonly QueryKeyword[];
 };
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords }) => {
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ items }) => {
+  const store = React.useContext(context).queryStore;
+  const keywords = useVal(store.$.keywords);
   return <>
-    <Keywords
-      store={store}
-      keywords={keywords} />
+    <Keywords />
     <HighlightProvider keywords={keywords}>
       <div className={styles["query-result-box"]}>
         {items.length === 0 && (
@@ -100,12 +95,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords })
   </>;
 };
 
-type KeywordsProps = {
-  readonly store: QueryStore;
-  readonly keywords: readonly QueryKeyword[];
-};
-
-const Keywords: React.FC<KeywordsProps> = ({ store, keywords }) => {
+const Keywords: React.FC<{}> = () => {
+  const store = React.useContext(context).queryStore;
+  const keywords = useVal(store.$.keywords);
   const onChangeTag = React.useCallback(
     (name: string, checked: boolean) => store.checkTag(name, checked),
     [store],
