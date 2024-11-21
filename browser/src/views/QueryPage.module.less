@@ -1,3 +1,9 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .query-box {
   display: flex;
   flex-direction: column;
@@ -10,14 +16,18 @@
   overflow-y: scroll;
   flex-shrink: 1;
   flex-grow: 1;
+  padding-top: 48px;
+  padding-bottom: 24px;
+  padding-left: 12px;
+  padding-right: 64px;
 }
 
 .keywords-bar {
   display: flex;
-  margin-top: 12px;
-  margin-bottom: 24px;
   flex-direction: row;
+  padding-bottom: 21px;
   align-items: center;
+  border-bottom: 1px solid #E5E5E5;
 
   > label {
     font-size: 12px;
