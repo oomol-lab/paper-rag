@@ -99,6 +99,11 @@ def routes(app: Flask, service: ServiceRef):
     service.sources.remove(name)
     return jsonify(None), 204
 
+  @app.route("/file/pdf", methods=["GET"])
+  def open_pdf_file():
+    path = request.args.get("path", "")
+    return send_file(path, mimetype="application/pdf")
+
   @app.errorhandler(404)
   def page_not_found(e):
     mimetypes = request.accept_mimetypes

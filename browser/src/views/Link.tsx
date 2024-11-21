@@ -23,8 +23,9 @@ export const PDFTagLink: React.FC<PDFTagLinkProps> = ({ path, page }) => {
       <Tooltip title={path}>
         <a
           className={styles["pdf-a"]}
-          href={`file://${path}`}
-          download>
+          href={`/file/pdf?${new URLSearchParams({ path })}#page=${page + 1}`}
+          type="application/pdf"
+          target="_blank">
           {fileNameWithoutExt}
         </a>
       </Tooltip>

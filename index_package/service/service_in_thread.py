@@ -1,4 +1,4 @@
-from __future__ import annotations
+import os
 
 from typing import Optional
 from dataclasses import dataclass
@@ -9,6 +9,7 @@ from ..scanner import Event, Scope
 from ..parser import PdfParser
 from ..segmentation import Segmentation
 from ..index import Index, VectorDB, FTS5DB
+
 
 @dataclass
 class QueryResult:
@@ -27,6 +28,7 @@ class ServiceInThread:
     segmentation: Segmentation,
     vector_db: VectorDB,
   ):
+    self._scope: Scope = scope
     self._pdf_parser: PdfParser = PdfParser(
       cache_dir_path=pdf_parser_cache_path,
       temp_dir_path=pdf_parser_temp_path,
@@ -50,6 +52,15 @@ class ServiceInThread:
     if pdf is None:
       return ""
     return pdf.pages[page_index].snapshot
+
+  def device_path(self, scope: str, path: str) -> Optional[str]:
+    scope_path = self._scope.scope_path(scope)
+    if scope_path is None:
+      return None
+    path = os.path.join(scope_path, f"./{path}")
+    path = os.path.abspath(path)
+
+    return path
 
   def handle_event(self, event: Event, listener: ProgressEventListener):
     self._index.handle_event(event, listener)
