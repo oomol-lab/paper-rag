@@ -48,8 +48,11 @@ class ServiceRef:
       scan_job.interrupt()
 
   def gen_scanning_sse_lines(self) -> Generator[str, None, None]:
-    for event in self._progress_events.fetch_events():
-      yield f"data: {dumps(event, ensure_ascii=False)}\n\n"
+    try:
+      for event in self._progress_events.fetch_events():
+        yield f"data: {dumps(event, ensure_ascii=False)}\n\n"
+    finally:
+      print("SSE closed")
 
   def start_scanning(self):
     with self._lock:

@@ -1,4 +1,5 @@
 import { val, derive, combine, Val, ReadonlyVal } from "value-enhancer";
+import { message } from "antd";
 import { fetchJson, fetchJsonEvents, EventFetcher } from "../utils";
 
 type Event = {
@@ -72,7 +73,6 @@ export type HandingFile = File & {
 export class ScanningStore {
   public readonly $: ScanningStore$;
 
-  readonly #fetcher: EventFetcher<Event>;
   readonly #phase$: Val<ScanningPhase> = val(ScanningPhase.Ready);
   readonly #scanCount$: Val<number> = val(0);
   readonly #handlingFile$: Val<HandingFile | null> = val<HandingFile | null>(null);
@@ -81,8 +81,9 @@ export class ScanningStore {
   readonly #isInterrupting$: Val<boolean> = val(false);
   readonly #isInterrupted$: Val<boolean> = val(false);
 
+  #fetcher: EventFetcher<Event> | null = null;
+
   public constructor() {
-    this.#fetcher = fetchJsonEvents<Event>("/api/scanning");
     this.$ = {
       phase: derive(this.#phase$),
       scanCount: derive(this.#scanCount$),
@@ -120,13 +121,30 @@ export class ScanningStore {
     await fetchJson("/api/scanning", { method: "DELETE" });
   }
 
-  public close(): void {
-    this.#fetcher.close();
+  public startWatching(): void {
+    if (this.#fetcher) {
+      return;
+    }
+    this.#fetcher = fetchJsonEvents<Event>("/api/scanning");
+    this.#runLoop(this.#fetcher).catch((error) => {
+      console.error(error);
+      message.error(error.message);
+    }).finally(() => {
+      this.#fetcher = null;
+    });
   }
 
-  public async runLoop(): Promise<void> {
+  public stopWatching(): void {
+    if (!this.#fetcher) {
+      return;
+    }
+    this.#fetcher.close();
+    this.#fetcher = null;
+  }
+
+  async #runLoop(fetcher: EventFetcher<Event>): Promise<void> {
     while (true) {
-      const event = await this.#fetcher.get();
+      const event = await fetcher.get();
       if (!event) {
         break;
       }

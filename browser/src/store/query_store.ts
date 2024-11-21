@@ -6,6 +6,7 @@ export type QueryStore$ = {
   readonly isQuerying: ReadonlyVal<boolean>;
   readonly items: ReadonlyVal<(readonly QueryItem[]) | null>;
   readonly keywords: ReadonlyVal<readonly QueryKeyword[]>;
+  readonly lastQueryText: ReadonlyVal<string | null>;
 };
 
 export type QueryItem = PDFMetadataItem | PDFPageItem;
@@ -57,11 +58,13 @@ export class QueryStore {
   readonly #isQuerying$: Val<boolean> = val(false);
   readonly #queryResult$: Val<QueryResult | null> = val<QueryResult | null>(null);
   readonly #checkedTags$: Val<Set<string>> = val<Set<string>>(new Set());
+  readonly #lastQueryText: Val<string | null> = val<string | null>(null);
 
   public constructor() {
     this.$ = {
       isQuerying: derive(this.#isQuerying$),
       items: derive(this.#queryResult$, r => r?.items ?? null),
+      lastQueryText: derive(this.#lastQueryText),
       keywords: combine(
         [this.#queryResult$, this.#checkedTags$],
         ([result, checkedTags]) => {
@@ -94,10 +97,14 @@ export class QueryStore {
   }
 
   public query(text: string): void {
-    const query = new URLSearchParams({
-      query: text,
-    });
+    if (this.#lastQueryText.value === text) {
+      return;
+    }
+    const query = new URLSearchParams({ query: text });
+
+    this.#lastQueryText.set(text);
     this.#isQuerying$.set(true);
+
     fetchJson<QueryResult>(`/api/query?${query}`)
       .then((queryResults) => {
         this.#queryResult$.set(queryResults);
@@ -115,6 +122,7 @@ export class QueryStore {
   public cleanQuery(): void {
     this.#queryResult$.set(null);
     this.#checkedTags$.set(new Set());
+    this.#lastQueryText.set(null);
   }
 
 }

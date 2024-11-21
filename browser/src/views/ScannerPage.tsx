@@ -12,6 +12,15 @@ const { Title, Paragraph } = Typography;
 
 export const ScannerPage: React.FC = () => {
   const store = React.useContext(context).scannerStore;
+  React.useEffect(
+    () => {
+      if (store) {
+        store.scanningStore.startWatching();
+        return () => store.scanningStore.stopWatching();
+      }
+    },
+    [store],
+  );
   if (!store) {
     return <Skeleton active />;
   }
