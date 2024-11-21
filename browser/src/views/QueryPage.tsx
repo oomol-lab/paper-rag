@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./QueryPage.module.less";
 
-import { Tag, Empty, Skeleton, Input, Divider, Descriptions } from "antd";
+import { Tag, Empty, Skeleton, Input, List, Descriptions } from "antd";
 import { useVal } from "use-value-enhancer";
 import { PDFPageItem, QueryItem, QueryKeyword, QueryStore } from "../store";
 import { PDFTagLink } from "./Link";
@@ -109,26 +109,26 @@ const PDFPageCard: React.FC<PDFPageCardProps> = ({ item }) => {
   const { distance, pdf_files, content, segments } = item;
   return (
     <div className={styles["pdf-page-card"]}>
-      <Descriptions
-        layout="vertical"
-        items={[{
-          key: "1",
-          label: "文件",
-          children: pdf_files.map((pdf, index) => (
-            <PDFTagLink
-              key={`${index}`}
-              path={pdf.pdf_path}
-              page={pdf.page_index} />
-          )),
-        }, {
-          key: "2",
-          label: "距离",
-          children: distance,
-        }, {
-          key: "3",
-          label: "匹配片段",
-          children: segments.length,
-        }]} />
+      <List>
+        <List.Item>
+          <List.Item.Meta
+            title="距离"
+            description={distance} />
+          <List.Item.Meta
+            title="匹配片段"
+            description={segments.length} />
+        </List.Item>
+        <List.Item.Meta
+          title="文件"
+          description={
+            pdf_files.map((pdf, index) => (
+              <PDFTagLink
+                key={`${index}`}
+                path={pdf.pdf_path}
+                page={pdf.page_index} />
+            ))
+          } />
+      </List>
       <Text
         className={styles.text}
         content={content}
