@@ -1,10 +1,11 @@
 import React from "react";
 import styles from "./QueryPage.module.less";
 
-import { Tag, Empty, Skeleton, Input, List } from "antd";
+import { Tag, Empty, Skeleton, Input, List, InputNumber } from "antd";
 import { useVal } from "use-value-enhancer";
 import { useSearchParams } from "react-router-dom";
-import { PDFPageItem, QueryItem, QueryKeyword, QueryStore } from "../store";
+import { PDFPageItem, QueryItem } from "../store";
+import { context } from "./StoreContext";
 import { PDFTagLink } from "./Link";
 import { HighlightProvider } from "./HighlightTag";
 import { Text } from "./Text";
@@ -12,25 +13,52 @@ import { Text } from "./Text";
 const { Search } = Input;
 
 export const QueryPage: React.FC<{}> = () => {
-  const store = React.useMemo(() => new QueryStore(), []);
+  const store = React.useContext(context).queryStore;
   const isQuerying = useVal(store.$.isQuerying);
   const items = useVal(store.$.items);
-  const keywords = useVal(store.$.keywords);
+  let tailView: React.ReactNode = null;
+
+  if (isQuerying) {
+    tailView = <Skeleton active />;
+  } else if (items) {
+    tailView = (
+      <ResultDisplay items={items} />
+    );
+  }
+  return (
+    <div className={styles.root}>
+      <QueryBox />
+      {tailView}
+    </div>
+  );
+};
+
+const QueryBox: React.FC<{}> = () => {
+  const store = React.useContext(context).queryStore;
   const [searchParams, setSearchParams] = useSearchParams();
+  const resultsLimit = useVal(store.$.resultsLimit);
+  const isValidResultsLimit = resultsLimit !== null;
+  const onResultsLimitChanged = React.useCallback(
+    (value: number | null) => store.$.resultsLimit.set(value),
+    [store],
+  );
   let query: string | null | undefined = searchParams.get("query");
 
-  if (typeof query !== "string" || query.trim() === "") {
-    query = undefined;
-  }
   React.useEffect(
-    () => {
-      if (typeof query === "string") {
-        store.query(query);
-      } else {
-        store.cleanQuery();
+    () => queryIfNeed(query, resultsLimit),
+    [store],
+  );
+  const queryIfNeed = React.useCallback(
+    (query: string | null | undefined, resultsLimit: number | null) => {
+      if (resultsLimit !== null) {
+        if (typeof query !== "string" || query.trim() === "") {
+          store.cleanQuery();
+        } else {
+          store.query(query, resultsLimit);
+        }
       }
     },
-    [store, query],
+    [store],
   );
   const onSearch = React.useCallback(
     (query: string) => {
@@ -39,46 +67,41 @@ export const QueryPage: React.FC<{}> = () => {
       } else {
         setSearchParams({ query });
       }
+      queryIfNeed(query, resultsLimit);
     },
-    [setSearchParams],
+    [setSearchParams, resultsLimit],
   );
-  let tailView: React.ReactNode = null;
-
-  if (isQuerying) {
-    tailView = <Skeleton active />;
-  } else if (items) {
-    tailView = (
-      <ResultDisplay
-        store={store}
-        items={items}
-        keywords={keywords} />
-    );
-  }
   return (
-    <div className={styles.root}>
-      <div className={styles["query-box"]}>
-        <Search
-          placeholder="输入你要搜索的内容"
-          defaultValue={query}
-          allowClear
-          onSearch={onSearch} />
-      </div>
-      {tailView}
+    <div className={styles["query-box"]}>
+      <Search
+        className={styles["query-searcher"]}
+        placeholder="输入你要搜索的内容"
+        defaultValue={query ?? ""}
+        allowClear
+        disabled={!isValidResultsLimit}
+        onSearch={onSearch} />
+      <InputNumber
+        className={styles["query-limit"]}
+        addonBefore="前"
+        addonAfter="个结果"
+        min={1}
+        max={100}
+        value={resultsLimit}
+        status={isValidResultsLimit ? undefined : "warning"}
+        onChange={onResultsLimitChanged} />
     </div>
   );
 };
 
 type ResultDisplayProps = {
-  readonly store: QueryStore;
   readonly items: readonly QueryItem[];
-  readonly keywords: readonly QueryKeyword[];
 };
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords }) => {
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ items }) => {
+  const store = React.useContext(context).queryStore;
+  const keywords = useVal(store.$.keywords);
   return <>
-    <Keywords
-      store={store}
-      keywords={keywords} />
+    <Keywords />
     <HighlightProvider keywords={keywords}>
       <div className={styles["query-result-box"]}>
         {items.length === 0 && (
@@ -100,12 +123,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords })
   </>;
 };
 
-type KeywordsProps = {
-  readonly store: QueryStore;
-  readonly keywords: readonly QueryKeyword[];
-};
-
-const Keywords: React.FC<KeywordsProps> = ({ store, keywords }) => {
+const Keywords: React.FC<{}> = () => {
+  const store = React.useContext(context).queryStore;
+  const keywords = useVal(store.$.keywords);
   const onChangeTag = React.useCallback(
     (name: string, checked: boolean) => store.checkTag(name, checked),
     [store],

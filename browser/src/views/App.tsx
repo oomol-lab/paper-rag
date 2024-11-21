@@ -8,20 +8,23 @@ import { Button, Result, ConfigProvider } from "antd";
 import { Navigator } from "./Navigator";
 import { ScannerPage } from "./ScannerPage";
 import { QueryPage } from "./QueryPage";
+import { StoreContextProvider } from "./StoreContext";
 
 export const App: React.FC<{}> = () => {
   return (
     <ConfigProvider locale={zhCN}>
-      <BrowserRouter>
-        <div className={styles.app}>
-          <header className={cls(styles.panel, styles["navigator-panel"])}>
-            <Navigator />
-          </header>
-          <div className={cls(styles.panel, styles["main-panel"])}>
-            <AppRoutes />
+      <StoreContextProvider>
+        <BrowserRouter>
+          <div className={styles.app}>
+            <header className={cls(styles.panel, styles["navigator-panel"])}>
+              <Navigator />
+            </header>
+            <div className={cls(styles.panel, styles["main-panel"])}>
+              <AppRoutes />
+            </div>
           </div>
-        </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </StoreContextProvider>
     </ConfigProvider>
   )
 };
