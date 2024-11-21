@@ -31,18 +31,17 @@ export const QueryPage: React.FC<{}> = () => {
         keywords={keywords} />
     );
   }
-  return <>
-    <div className={styles["query-box"]}>
-      <Search
-        placeholder="输入你要搜索的内容"
-        allowClear
-        onSearch={onSearch} />
-      {tailView && <>
-        <Divider />
-        {tailView}
-      </>}
+  return (
+    <div className={styles.root}>
+      <div className={styles["query-box"]}>
+        <Search
+          placeholder="输入你要搜索的内容"
+          allowClear
+          onSearch={onSearch} />
+      </div>
+      {tailView}
     </div>
-  </>;
+  );
 };
 
 type ResultDisplayProps = {
@@ -52,12 +51,12 @@ type ResultDisplayProps = {
 };
 
 const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords }) => {
-  return (
-    <div className={styles["query-result-box"]}>
-      <Keywords
-        store={store}
-        keywords={keywords} />
-      <HighlightProvider keywords={keywords}>
+  return <>
+    <Keywords
+      store={store}
+      keywords={keywords} />
+    <HighlightProvider keywords={keywords}>
+      <div className={styles["query-result-box"]}>
         {items.length === 0 && (
           <Empty
             className={styles.empty}
@@ -72,9 +71,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ store, items, keywords })
             <PDFPageCard key={`${index}`} item={item} />
           );
         })}
-      </HighlightProvider>
-    </div>
-  );
+      </div>
+    </HighlightProvider>
+  </>;
 };
 
 type KeywordsProps = {
