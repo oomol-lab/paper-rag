@@ -34,11 +34,25 @@ export const Text: React.FC<TextProps> = ({ content, segments, ...rest }) => {
 };
 
 type TextParagraphProps = {
-  readonly fragments: readonly Omit<Fragment, "offset">[];
+  readonly fragments: readonly Omit<Fragment, "offset">[][];
 };
 
 const TextParagraph: React.FC<TextParagraphProps> = ({ fragments }) => (
-  <p className={styles.p}>
+  <div className={styles.paragraph}>
+    {fragments.map((fragments, i) => (
+      <TextLine
+        key={`${i}`}
+        fragments={fragments} />
+    ))}
+  </div>
+);
+
+type TextLineProps = {
+  readonly fragments: readonly Omit<Fragment, "offset">[];
+};
+
+const TextLine: React.FC<TextLineProps> = ({ fragments }) => (
+  <p>
     {fragments.map((fragment, i) => {
       switch (fragment.color) {
         case SegmentKind.Background: {
@@ -65,13 +79,18 @@ const TextParagraph: React.FC<TextParagraphProps> = ({ fragments }) => (
       }
     })}
   </p>
-)
+);
 
 type Fragment = {
   readonly content: string;
   readonly offset: number;
   readonly color: number;
 };
+
+enum Splitter {
+  LineBreak = 0,
+  Paragraph = 1,
+}
 
 class Dyeing {
   #fragments: readonly Fragment[];
@@ -125,34 +144,54 @@ class Dyeing {
     this.#fragments = newFragments;
   }
 
-  public split(): Omit<Fragment, "offset">[][] {
-    const fragmentMatrix: Omit<Fragment, "offset">[][] = [];
-    let fragments: Omit<Fragment, "offset">[] = [];
+  public split(): Omit<Fragment, "offset">[][][] {
+    const paragraphs: Omit<Fragment, "offset">[][][] = [];
+    let paragraph: Omit<Fragment, "offset">[][] = [];
+    let line: Omit<Fragment, "offset">[] = [];
 
-    for (const fragment of this.#fragments) {
-      const content = fragment.content.replace(/[\s]+/, " ");
-      const cells = content.split(/[\r\n]+/)
-      if (cells.length === 1) {
-        fragments.push({
-          content: cells[0].trim(),
-          color: fragment.color,
-        });
+    for (const item of this.#splitWithSplitters()) {
+      if (item === Splitter.LineBreak) {
+        if (line.length > 0) {
+          paragraph.push(line);
+          line = [];
+        }
+      } else if (item === Splitter.Paragraph) {
+        if (line.length > 0) {
+          paragraph.push(line);
+          line = [];
+        }
+        if (paragraph.length > 0) {
+          paragraphs.push(paragraph);
+          paragraph = [];
+        }
       } else {
-        for (let i = 0; i < cells.length; ++ i) {
-          fragments.push({
+        line.push(item);
+      }
+    }
+    return paragraphs;
+  }
+
+  *#splitWithSplitters(): Generator<Omit<Fragment, "offset"> | Splitter> {
+    for (const fragment of this.#fragments) {
+      // 令连续的多行回车变成标准的连续两个回车符（这些多行回车之间如果填充其他空白字符也会处理）
+      const content = fragment.content.replace(/\n\s+\n/g, "\n\n");
+      const cells = content.split("\n");
+
+      for (let i = 0; i < cells.length; ++i) {
+        const content = cells[i].trim();
+        if (content === "") {
+          yield Splitter.Paragraph;
+        } else {
+          yield {
             content: cells[i].trim(),
             color: fragment.color,
-          });
-          if (i < cells.length - 1) {
-            fragmentMatrix.push(fragments);
-            fragments = [];
           }
+        }
+        if (i < cells.length - 1) {
+          yield Splitter.LineBreak;
         }
       }
     }
-    if (fragments.length > 0) {
-      fragmentMatrix.push(fragments);
-    }
-    return fragmentMatrix;
+    yield Splitter.Paragraph;
   }
 }
