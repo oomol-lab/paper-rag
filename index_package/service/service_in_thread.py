@@ -57,9 +57,9 @@ class ServiceInThread:
     scope_path = self._scope.scope_path(scope)
     if scope_path is None:
       return None
+
     path = os.path.join(scope_path, f"./{path}")
     path = os.path.abspath(path)
-
     return path
 
   def handle_event(self, event: Event, listener: ProgressEventListener):

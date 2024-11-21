@@ -99,10 +99,16 @@ def routes(app: Flask, service: ServiceRef):
     service.sources.remove(name)
     return jsonify(None), 204
 
-  @app.route("/file/pdf", methods=["GET"])
-  def open_pdf_file():
-    path = request.args.get("path", "")
-    return send_file(path, mimetype="application/pdf")
+  @app.route("/files/<scope>/<path:path>", methods=["GET"])
+  def open_pdf_file(scope: str, path: str):
+    device_path = service.ref.device_path(scope, path)
+    if device_path is None:
+      return jsonify({ "error": "Not found" }), 404
+
+    return send_file(
+      path_or_file=device_path,
+      conditional=True, # 304 if needed
+    )
 
   @app.errorhandler(404)
   def page_not_found(e):
