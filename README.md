@@ -1,7 +1,5 @@
 # parpers-rag
 
-# 开发环境
-
 # 安装
 
 ## conda 环境
@@ -38,3 +36,36 @@ $ conda deactivate
 $ python -m spacy download en_core_web_sm
 $ python -m spacy download zh_core_web_sm
 ```
+
+# 发布 Windows 版
+
+## 在 MacOS 上的准备
+
+执行如下命令，构造供 windows 进一步构建的的压缩包。
+
+```shell
+./build/build-win.sh
+```
+
+找到 `dist/PaperRAG-win-amd64.zip` 文件，将它复制到 Windows 设备上并解压缩。
+
+## 在 Windows 上的构建
+
+解压缩压缩包，并确保设备已安装 Anaconda。在解压缩后的项目中用 CMD 执行如下命令。
+
+```bat
+conda create --prefix ./.paper-rag-venv python=3.12.7 -y
+```
+
+打开 Anaconda 的图形界面，找到 `.paper-rag-venv` 然后点播放键打开，再依次执行如下命令。
+
+```bat
+.\.paper-rag-venv\python.exe -m pip install --upgrade pip
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
+python -m spacy download zh_core_web_sm
+```
+
+## 在 Windows 上运行
+
+双击 `start.bat` 文件即可。
