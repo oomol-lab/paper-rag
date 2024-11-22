@@ -1,8 +1,8 @@
 import re
+import torch
 
 from typing import cast, Any, Optional, Callable, Literal
 from numpy import ndarray, array
-from numpy.typing import ArrayLike
 from sentence_transformers import SentenceTransformer
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
@@ -12,7 +12,7 @@ from chromadb.utils import distance_functions
 from ..segmentation import Segment
 from .types import IndexNode, IndexSegment, IndexNodeMatching
 
-_DistanceFunction = Callable[[ArrayLike, ArrayLike], float]
+_DistanceFunction = Callable[[distance_functions.Vector, distance_functions.Vector], float]
 DistanceSpace = Literal["l2", "ip", "cosine"]
 
 class VectorDB:
@@ -166,7 +166,10 @@ class _EmbeddingFunction(EmbeddingFunction):
 
   def __call__(self, input: Documents) -> Embeddings:
     if self._model is None:
-      self._model = SentenceTransformer(self._model_id)
+      self._model = SentenceTransformer(
+        model_name_or_path=self._model_id,
+        device="cuda" if torch.cuda.is_available() else "cpu",
+      )
     result = self._model.encode(input)
     if not isinstance(result, ndarray):
       raise ValueError("Model output is not a numpy array")

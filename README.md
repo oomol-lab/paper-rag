@@ -60,7 +60,9 @@ conda create --prefix ./.paper-rag-venv python=3.12.7 -y
 打开 Anaconda 的图形界面，找到 `.paper-rag-venv` 然后点播放键打开，再依次执行如下命令。
 
 ```bat
+cd XXXXX # 文件夹根目录
 .\.paper-rag-venv\python.exe -m pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 python -m spacy download zh_core_web_sm
