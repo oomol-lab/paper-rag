@@ -1,3 +1,4 @@
+from typing import Optional
 from dataclasses import dataclass
 from sqlite3_pool import SQLite3Pool
 from .events import EventKind, EventTarget
@@ -10,12 +11,13 @@ class Event:
   scope: str
   path: str
   mtime: float
-  db: SQLite3Pool
+  db: Optional[SQLite3Pool] = None
 
   def close(self):
-    with self.db.connect() as (cursor, conn):
-      cursor.execute("DELETE FROM events WHERE id = ?", (self.id,))
-      conn.commit()
+    if self.db is not None:
+      with self.db.connect() as (cursor, conn):
+        cursor.execute("DELETE FROM events WHERE id = ?", (self.id,))
+        conn.commit()
 
 class EventParser:
   def __init__(self, db: SQLite3Pool):
