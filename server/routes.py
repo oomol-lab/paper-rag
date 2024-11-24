@@ -1,5 +1,6 @@
 import os
 
+from sqlite3_pool import build_thread_pool, release_thread_pool
 from .service import ServiceRef
 from flask import (
   request,
@@ -109,6 +110,15 @@ def routes(app: Flask, service: ServiceRef):
       path_or_file=device_path,
       conditional=True, # 304 if needed
     )
+
+  @app.before_request
+  def before_request():
+    build_thread_pool()
+
+  @app.teardown_request
+  def teardown_request(response):
+    release_thread_pool()
+    return response
 
   @app.errorhandler(404)
   def page_not_found(e):

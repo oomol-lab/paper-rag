@@ -64,7 +64,3 @@ class ServiceInThread:
 
   def handle_event(self, event: Event, listener: ProgressEventListener):
     self._index.handle_event(event, listener)
-
-  def close(self):
-    self._pdf_parser.close()
-    self._index.close()

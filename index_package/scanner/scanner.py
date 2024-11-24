@@ -3,6 +3,8 @@ import sqlite3
 
 from dataclasses import dataclass
 from typing import cast, Optional, Generator
+from sqlite3 import Cursor
+from sqlite3_pool import register_table_creators, SQLite3Pool
 from .scope import Scope, ScopeManager
 from .events import scan_events, record_added_event, record_updated_event, record_removed_event
 from .event_parser import EventTarget, EventParser
@@ -28,87 +30,37 @@ class _File:
 
 class Scanner:
   def __init__(self, db_path: str) -> None:
-    self._db_path: str = db_path
-    self._conn: sqlite3.Connection = self._connect()
-    self._scope_manager: ScopeManager = ScopeManager(self._conn)
+    db = SQLite3Pool(
+      format_name="scanner",
+      path=db_path,
+    )
+    self._db: SQLite3Pool = db.assert_format("scanner")
+    self._scope_manager: ScopeManager = ScopeManager(self._db)
 
   def event_parser(self) -> EventParser:
-    return EventParser(self._connect())
+    return EventParser(self._db)
 
   @property
   def scope(self) -> Scope:
     return self._scope_manager
 
-  def _connect(self) -> sqlite3.Connection:
-    is_first_time = not os.path.exists(self._db_path)
-    conn = sqlite3.connect(self._db_path)
-
-    if is_first_time:
-      cursor = conn.cursor()
-      try:
-        cursor.execute('''
-          CREATE TABLE files (
-            id INTEGER PRIMARY KEY,
-            scope TEXT NOT NULL,
-            path TEXT NOT NULL,
-            mtime REAL NOT NULL,
-            children TEXT
-          )
-        ''')
-        cursor.execute('''
-          CREATE TABLE events (
-            id INTEGER PRIMARY KEY,
-            kind INTEGER NOT NULL,
-            target INTEGER NOT NULL,
-            path TEXT NOT NULL,
-            scope TEXT NOT NULL,
-            mtime REAL NOT NULL
-          )
-        ''')
-        cursor.execute('''
-          CREATE TABLE scopes (
-            name TEXT PRIMARY KEY,
-            path TEXT NOT NULL
-          )
-        ''')
-        cursor.execute("""
-          CREATE UNIQUE INDEX idx_files ON events (scope, path)
-        """)
-        cursor.execute("""
-          CREATE UNIQUE INDEX idx_events ON events (scope, path, target)
-        """)
-        conn.commit()
-
-      finally:
-        cursor.close()
-
-    return conn
-
-  def close(self):
-    self._conn.close()
-
   @property
   def events_count(self) -> int:
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, _):
       cursor.execute("SELECT COUNT(*) FROM events")
       row = cursor.fetchone()
       return row[0]
-    finally:
-      cursor.close
 
   def scan(self) -> Generator[int, None, None]:
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, conn):
       for scope in self._scope_manager.scopes:
-        self._scan_scope(self._conn, cursor, scope)
-    finally:
-      cursor.close()
+        self._scan_scope(conn, cursor, scope)
 
-    return scan_events(self._conn)
+      for event_id in scan_events(cursor):
+        yield event_id
 
   def commit_sources(self, sources: dict[str, str]):
-    self._scope_manager.commit_sources(self._conn, sources)
+    self._scope_manager.commit_sources(sources)
 
   def _scan_scope(
     self,
@@ -293,3 +245,38 @@ class Scanner:
       children = children_str.split("/")
 
     return _File(scope, relative_path, mtime, children)
+
+def _create_tables(cursor: Cursor):
+  cursor.execute('''
+    CREATE TABLE files (
+      id INTEGER PRIMARY KEY,
+      scope TEXT NOT NULL,
+      path TEXT NOT NULL,
+      mtime REAL NOT NULL,
+      children TEXT
+    )
+  ''')
+  cursor.execute('''
+    CREATE TABLE events (
+      id INTEGER PRIMARY KEY,
+      kind INTEGER NOT NULL,
+      target INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      mtime REAL NOT NULL
+    )
+  ''')
+  cursor.execute('''
+    CREATE TABLE scopes (
+      name TEXT PRIMARY KEY,
+      path TEXT NOT NULL
+    )
+  ''')
+  cursor.execute("""
+    CREATE UNIQUE INDEX idx_files ON events (scope, path)
+  """)
+  cursor.execute("""
+    CREATE UNIQUE INDEX idx_events ON events (scope, path, target)
+  """)
+
+register_table_creators("scanner", _create_tables)

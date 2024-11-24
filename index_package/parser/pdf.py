@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 import json
 import shutil
-import sqlite3
 import pikepdf
 
 from typing import cast, Optional, Callable
+from sqlite3 import Cursor, Connection
+from sqlite3_pool import register_table_creators, SQLite3Pool
 from dataclasses import dataclass
 
 from .pdf_extractor import extract_metadata_with_pdf, PdfExtractor, Annotation
@@ -68,67 +69,29 @@ class PdfParser:
     temp_dir_path: str,
     listeners: PdfParserListeners = PdfParserListeners(),
   ) -> None:
-    db_path = os.path.abspath(
-      os.path.join(cache_dir_path, "pages.sqlite3"),
+    db = SQLite3Pool(
+      format_name="pdf",
+      path=os.path.abspath(
+        os.path.join(cache_dir_path, "pages.sqlite3"),
+      ),
     )
+    self._db: SQLite3Pool = db.assert_format("pdf")
     self._pages_path: str = os.path.abspath(
       os.path.join(cache_dir_path, "pages"),
     )
     self._temp_folders: TempFolderHub = TempFolderHub(temp_dir_path)
-    self._conn: sqlite3.Connection = self._connect(db_path)
     self._extractor: PdfExtractor = PdfExtractor(self._pages_path)
     self._listeners: PdfParserListeners = listeners
 
     if not os.path.exists(self._pages_path):
       os.makedirs(self._pages_path, exist_ok=True)
 
-  def _connect(self, db_path: str) -> sqlite3.Connection:
-    is_first_time = not os.path.exists(db_path)
-    conn = sqlite3.connect(db_path)
-
-    if is_first_time:
-      cursor = conn.cursor()
-      try:
-        cursor.execute("""
-          CREATE TABLE pdfs (
-            id INTEGER PRIMARY KEY,
-            hash TEXT NOT NULL,
-            meta TEXT NOT NULL
-          )
-        """)
-        cursor.execute("""
-          CREATE TABLE pages (
-            id INTEGER PRIMARY KEY,
-            pdf_id TEXT NOT NULL,
-            hash TEXT NOT NULL,
-            idx INTEGER NOT NULL
-          )
-        """)
-        cursor.execute("""
-          CREATE INDEX idx_pdfs ON pdfs (hash)
-        """)
-        cursor.execute("""
-          CREATE INDEX idx_pdf_pages ON pages (pdf_id, idx)
-        """)
-        cursor.execute("""
-          CREATE INDEX idx__hash_pages ON pages (hash)
-        """)
-        conn.commit()
-      finally:
-        cursor.close()
-
-    return conn
-
-  def close(self):
-    self._conn.close()
-
   @property
   def name(self) -> str:
     return "pdf"
 
   def page(self, page_hash: str) -> Optional[PdfPage]:
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, _):
       cursor.execute("SELECT pdf_id, idx FROM pages WHERE hash = ? LIMIT 1", (page_hash,))
       row = cursor.fetchone()
       if row is not None:
@@ -136,17 +99,16 @@ class PdfParser:
         return PdfPage(self, pdf_id, index, page_hash)
       else:
         return None
-    finally:
-      cursor.close()
 
   def pdf(self, hash: str, file_path: str, listener: ProgressEventListener) -> Pdf:
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, conn):
       cursor.execute("SELECT id, meta FROM pdfs WHERE hash = ? LIMIT 1", (hash,))
       row = cursor.fetchone()
 
       if row is None:
-        pdf_id, metadata = self._create_and_split_pdf(cursor, hash, file_path, listener)
+        pdf_id, metadata = self._create_and_split_pdf(
+          cursor, conn, hash, file_path, listener,
+        )
       else:
         pdf_id, meta_json = row
         metadata = PdfMetadata(**json.loads(meta_json))
@@ -156,44 +118,33 @@ class PdfParser:
         metadata=metadata,
         pages=self._all_pages(cursor, pdf_id),
       )
-    finally:
-      cursor.close()
 
   def pdf_or_none(self, hash: str) -> Optional[Pdf]:
-    cursor = self._conn.cursor()
-    try:
+   with self._db.connect() as (cursor, _):
       pdf_id = self._pdf_id(cursor, hash)
       if pdf_id is None:
         return None
-      else:
-        return self._load_cached_pdf(cursor, pdf_id)
-    finally:
-      cursor.close()
 
-  def _load_cached_pdf(self, cursor: sqlite3.Cursor, pdf_id: int) -> Pdf:
-    cursor.execute("SELECT hash, meta FROM pdfs WHERE id = ? LIMIT 1", (pdf_id,))
-    row = cursor.fetchone()
-    if row is None:
-      raise ValueError(f"pdf_id {pdf_id} not found")
+      cursor.execute("SELECT hash, meta FROM pdfs WHERE id = ? LIMIT 1", (pdf_id,))
+      row = cursor.fetchone()
+      if row is None:
+        raise ValueError(f"pdf_id {pdf_id} not found")
 
-    hash, meta_json = row
-    metadata = PdfMetadata(**json.loads(meta_json))
+      hash, meta_json = row
+      metadata = PdfMetadata(**json.loads(meta_json))
 
-    return Pdf(
-      hash=hash,
-      metadata=metadata,
-      pages=self._all_pages(cursor, pdf_id),
-    )
+      return Pdf(
+        hash=hash,
+        metadata=metadata,
+        pages=self._all_pages(cursor, pdf_id),
+      )
 
   def pdf_has_cached(self, hash: str) -> bool:
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, _):
       pdf_id = self._pdf_id(cursor, hash)
       return pdf_id is not None
-    finally:
-      cursor.close()
 
-  def _all_pages(self, cursor: sqlite3.Cursor, pdf_id: int) -> list[PdfPage]:
+  def _all_pages(self, cursor: Cursor, pdf_id: int) -> list[PdfPage]:
     pdf_pages: list[PdfPage] = []
     rows = cursor.execute(
       "SELECT idx, hash FROM pages WHERE pdf_id = ? ORDER BY idx",
@@ -206,7 +157,14 @@ class PdfParser:
 
     return pdf_pages
 
-  def _create_and_split_pdf(self, cursor: sqlite3.Cursor, hash: str, file_path: str, listener: ProgressEventListener) -> tuple[int, PdfMetadata]:
+  def _create_and_split_pdf(
+      self,
+      cursor: Cursor,
+      conn: Connection,
+      hash: str,
+      file_path: str,
+      listener: ProgressEventListener,
+    ) -> tuple[int, PdfMetadata]:
     metadata = PdfMetadata(**extract_metadata_with_pdf(file_path))
     metadata_json = json.dumps(metadata.__dict__)
     added_page_hashes: list[str] = []
@@ -240,20 +198,18 @@ class PdfParser:
         completed=pages_count,
         total=pages_count,
         ))
-
-      self._conn.commit()
+      conn.commit()
       return pdf_id, metadata
 
     except InterruptException as e:
       for page_hash in added_page_hashes:
         self._extractor.remove_page(page_hash)
-      self._conn.rollback()
+      conn.rollback()
       raise e
 
   # to clean useless cache files
   def fire_file_removed(self, hash: str):
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, conn):
       pdf_id = self._pdf_id(cursor, hash)
       if pdf_id is None:
         return
@@ -269,9 +225,9 @@ class PdfParser:
         cursor.execute("BEGIN TRANSACTION")
         cursor.execute("DELETE FROM pdfs WHERE id = ?", (pdf_id,))
         cursor.execute("DELETE FROM pages WHERE pdf_id = ?", (pdf_id,))
-        self._conn.commit()
+        conn.commit()
       except Exception as e:
-        self._conn.rollback()
+        conn.rollback()
         raise e
 
       for page_hash in page_hashes:
@@ -282,9 +238,6 @@ class PdfParser:
       for page_hash in removed_page_hashes:
         self._extractor.remove_page(page_hash)
         self._listeners.on_page_removed(page_hash)
-
-    finally:
-      cursor.close()
 
   def _extract_page_hashes(self, file_path: str) -> list[str]:
     page_hashes: list[str] = []
@@ -322,10 +275,38 @@ class PdfParser:
 
     return page_hashes
 
-  def _pdf_id(self, cursor: sqlite3.Cursor, hash: str) -> Optional[int]:
+  def _pdf_id(self, cursor: Cursor, hash: str) -> Optional[int]:
     cursor.execute("SELECT id FROM pdfs WHERE hash = ? LIMIT 1", (hash,))
     row = cursor.fetchone()
     if row is None:
       return None
     else:
       return row[0]
+
+def _create_tables(cursor: Cursor):
+  cursor.execute("""
+    CREATE TABLE pdfs (
+      id INTEGER PRIMARY KEY,
+      hash TEXT NOT NULL,
+      meta TEXT NOT NULL
+    )
+  """)
+  cursor.execute("""
+    CREATE TABLE pages (
+      id INTEGER PRIMARY KEY,
+      pdf_id TEXT NOT NULL,
+      hash TEXT NOT NULL,
+      idx INTEGER NOT NULL
+    )
+  """)
+  cursor.execute("""
+    CREATE INDEX idx_pdfs ON pdfs (hash)
+  """)
+  cursor.execute("""
+    CREATE INDEX idx_pdf_pages ON pages (pdf_id, idx)
+  """)
+  cursor.execute("""
+    CREATE INDEX idx__hash_pages ON pages (hash)
+  """)
+
+register_table_creators("pdf", _create_tables)

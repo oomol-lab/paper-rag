@@ -30,7 +30,6 @@ class ServiceScanJob:
       max_workers=max_workers,
       print_error=True,
       on_init=self._init_context,
-      on_dispose=lambda i, _: self._dispose_context(i),
       on_handle=lambda id, i: self._handle_event(id, i),
     )
 
@@ -72,11 +71,6 @@ class ServiceScanJob:
       self._create_service(self._scanner.scope),
       self._scanner.event_parser(),
     )
-
-  def _dispose_context(self, index: int):
-    service, parser = cast(_JobContext, self._job_contexts[index])
-    service.close()
-    parser.close()
 
   def _handle_event(self, event_id: int, index: int):
     service, parser = cast(_JobContext, self._job_contexts[index])

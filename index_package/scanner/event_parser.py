@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-import sqlite3
-
+from sqlite3_pool import SQLite3Pool
 from typing import Optional, Callable
 from .events import EventKind, EventTarget
 
@@ -22,33 +21,30 @@ class Event:
       self._on_exit()
 
 class EventParser:
-  def __init__(self, conn: sqlite3.Connection):
-    self._conn: sqlite3.Connection = conn
-    self._cursor = self._conn.cursor()
+  def __init__(self, db: SQLite3Pool):
+    self._db: SQLite3Pool = db
 
   def parse(self, event_id: int) -> Event:
-    self._cursor.execute(
-      "SELECT kind, target, path, scope, mtime FROM events WHERE id = ?",
-      (event_id,)
-    )
-    row = self._cursor.fetchone()
-    if row is None:
-      raise Exception(f"Event not found: {event_id}")
+    with self._db.connect() as (cursor, _):
+      cursor.execute(
+        "SELECT kind, target, path, scope, mtime FROM events WHERE id = ?",
+        (event_id,)
+      )
+      row = cursor.fetchone()
+      if row is None:
+        raise Exception(f"Event not found: {event_id}")
 
-    return Event(
-      id=event_id,
-      kind=EventKind(row[0]),
-      target=EventTarget(row[1]),
-      path=row[2],
-      scope=row[3],
-      mtime=row[4],
-      _on_exit=lambda: self._remove_event(event_id),
-    )
-
-  def close(self):
-    self._cursor.close()
-    self._conn.close()
+      return Event(
+        id=event_id,
+        kind=EventKind(row[0]),
+        target=EventTarget(row[1]),
+        path=row[2],
+        scope=row[3],
+        mtime=row[4],
+        _on_exit=lambda: self._remove_event(event_id),
+      )
 
   def _remove_event(self, event_id: int):
-    self._cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
-    self._conn.commit()
+    with self._db.connect() as (cursor, conn):
+      cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
+      conn.commit()

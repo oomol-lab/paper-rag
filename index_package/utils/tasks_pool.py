@@ -1,6 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 from typing import cast, Optional, TypeVar, Generic, Callable
+from sqlite3_pool import build_thread_pool, release_thread_pool
 
 import traceback
 import threading
@@ -60,7 +61,6 @@ class TasksPool(Generic[E]):
     max_workers: int,
     on_handle: Callable[[E, int], None],
     on_init: Optional[Callable[[int], None]] = None,
-    on_dispose: Optional[Callable[[int, bool], None]] = None,
     print_error: bool = True,
   ):
     self._state: TasksPoolResultState = TasksPoolResultState.Success
@@ -68,7 +68,6 @@ class TasksPool(Generic[E]):
     self._max_workers = max_workers
     self._on_handle: Callable[[E, int], None] = on_handle
     self._on_init: Optional[Callable[[int], None]] = on_init
-    self._on_dispose: Optional[Callable[[int, bool], None]] = on_dispose
     self._print_error: bool = print_error
     self._semaphore_value: _SemaphoreValue[E] = _SemaphoreValue()
     self._threads: list[threading.Thread] = []
@@ -115,10 +114,11 @@ class TasksPool(Generic[E]):
 
   # this function is running in daemon thread
   def _start_thread_loop(self, index: int):
-    success = False
     _interrupted_event_val.value = self._interrupted_event
 
     try:
+      build_thread_pool()
+
       if self._on_init is not None:
         self._on_init(index)
 
@@ -129,7 +129,6 @@ class TasksPool(Generic[E]):
         self._on_handle(event, index)
 
         if self._completed_event.is_set():
-          success = True
           break
         if self._interrupted_event.is_set():
           break
@@ -149,8 +148,7 @@ class TasksPool(Generic[E]):
         self._semaphore_value.release_putter()
 
     finally:
-      if self._on_dispose is not None:
-        self._on_dispose(index, success)
+      release_thread_pool()
 
 class InterruptException(Exception):
   def __init__(self):
