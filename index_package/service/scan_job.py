@@ -75,8 +75,8 @@ class ServiceScanJob:
   def _handle_event(self, event_id: int, index: int):
     service, parser = cast(_JobContext, self._job_contexts[index])
     scope = self._scanner.scope
-
-    with parser.parse(event_id) as event:
+    event = parser.parse(event_id)
+    try:
       display_path = event.path
       scope_path = scope.scope_path(event.scope)
       if scope_path is not None:
@@ -86,3 +86,5 @@ class ServiceScanJob:
         display_path = f"[removed]:{display_path}"
 
       service.handle_event(event, self._listener)
+    finally:
+      event.close()

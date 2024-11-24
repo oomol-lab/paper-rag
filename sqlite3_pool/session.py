@@ -30,15 +30,30 @@ class SQLite3ConnectionSession:
     self._conn: sqlite3.Connection = conn
     self._cursor: sqlite3.Cursor = conn.cursor()
     self._send_back: Callable[[sqlite3.Connection], None] = send_back
+    self._is_closed: bool = False
+
+  @property
+  def conn(self) -> sqlite3.Connection:
+    return self._conn
+
+  @property
+  def cursor(self) -> sqlite3.Cursor:
+    return self._cursor
+
+  def close(self):
+    if self._is_closed:
+      return
+    self._is_closed = True
+    self._cursor.close()
+    if self._conn.in_transaction:
+      self._conn.rollback()
+    self._send_back(self._conn)
 
   def __enter__(self) -> tuple[sqlite3.Cursor, sqlite3.Connection]:
     return self._cursor, self._conn
 
   def __exit__(self, exc_type, exc_value, traceback):
-    self._cursor.close()
-    if self._conn.in_transaction:
-      self._conn.rollback()
-    self._send_back(self._conn)
+    self.close()
 
 class _ThreadPool():
   def __init__(self):

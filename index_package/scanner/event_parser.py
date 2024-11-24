@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from sqlite3_pool import SQLite3Pool
-from typing import Optional, Callable
 from .events import EventKind, EventTarget
 
 @dataclass
@@ -11,14 +10,12 @@ class Event:
   scope: str
   path: str
   mtime: float
-  _on_exit: Optional[Callable[[], None]] = None
+  db: SQLite3Pool
 
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exc_type, exc_value, traceback):
-    if exc_type is None and self._on_exit is not None:
-      self._on_exit()
+  def close(self):
+    with self.db.connect() as (cursor, conn):
+      cursor.execute("DELETE FROM events WHERE id = ?", (self.id,))
+      conn.commit()
 
 class EventParser:
   def __init__(self, db: SQLite3Pool):
@@ -41,10 +38,5 @@ class EventParser:
         path=row[2],
         scope=row[3],
         mtime=row[4],
-        _on_exit=lambda: self._remove_event(event_id),
+        db=self._db,
       )
-
-  def _remove_event(self, event_id: int):
-    with self._db.connect() as (cursor, conn):
-      cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
-      conn.commit()
