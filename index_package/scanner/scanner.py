@@ -2,7 +2,7 @@ import os
 import sqlite3
 
 from dataclasses import dataclass
-from typing import cast, Optional, Generator
+from typing import cast, Optional
 from sqlite3 import Cursor
 from sqlite3_pool import register_table_creators, SQLite3Pool
 from .scope import Scope, ScopeManager
@@ -51,13 +51,16 @@ class Scanner:
       row = cursor.fetchone()
       return row[0]
 
-  def scan(self) -> Generator[int, None, None]:
+  def scan(self) -> list[int]:
     with self._db.connect() as (cursor, conn):
+      event_ids: list[int] = []
       for scope in self._scope_manager.scopes:
         self._scan_scope(conn, cursor, scope)
 
-      for event_id in scan_events(cursor):
-        yield event_id
+      for event_id in list(scan_events(cursor)):
+        event_ids.append(event_id)
+
+      return event_ids
 
   def commit_sources(self, sources: dict[str, str]):
     self._scope_manager.commit_sources(sources)
