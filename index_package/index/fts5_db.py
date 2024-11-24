@@ -1,9 +1,9 @@
-import os
 import re
 import json
-import sqlite3
 
-from typing import Generator, Callable
+from typing import Generator
+from sqlite3 import Cursor
+from sqlite3_pool import register_table_creators, SQLite3Pool
 from .types import IndexNode, IndexSegment, IndexNodeMatching
 from ..segmentation import Segment
 
@@ -12,44 +12,11 @@ _INVALID_TOKENS = set(["", "NEAR", "AND", "OR", "NOT"])
 
 class FTS5DB:
   def __init__(self, db_path: str):
-    self._conn: sqlite3.Connection = self._connect(db_path)
-
-  def _connect(self, db_path: str) -> sqlite3.Connection:
-    is_first_time = not os.path.exists(db_path)
-    conn = sqlite3.connect(db_path)
-
-    if is_first_time:
-      cursor = conn.cursor()
-      try:
-        # unicode61 remove_diacritics 2 means: diacritics are correctly removed from all Latin characters.
-        # to see: https://www.sqlite.org/fts5.html
-        cursor.execute("""
-          CREATE VIRTUAL TABLE contents USING fts5(
-            content,
-            tokenize = "unicode61 remove_diacritics 2"
-          );
-        """)
-        cursor.execute("""
-          CREATE TABLE nodes (
-            node_id TEXT PRIMARY KEY,
-            type TEXT,
-            metadata TEXT NOT NULL,
-            segments TEXT NOT NULL,
-            content_id INTEGER NOT NULL
-          )
-        """)
-        cursor.execute("""
-          CREATE INDEX idx_nodes ON nodes (content_id)
-        """)
-        conn.commit()
-
-      finally:
-        cursor.close()
-
-    return conn
-
-  def close(self):
-    self._conn.close()
+    db = SQLite3Pool(
+      format_name="fts5",
+      path=db_path,
+    )
+    self._db: SQLite3Pool = db.assert_format("fts5")
 
   def query(
     self,
@@ -64,8 +31,7 @@ class FTS5DB:
     if len(query_tokens) == 0:
       return
 
-    cursor = self._conn.cursor()
-    try:
+    with self._db.connect() as (cursor, _):
       query_with_and = " AND ".join(query_tokens)
       if is_or_condition:
         query_with_or = " OR ".join(query_tokens)
@@ -101,52 +67,44 @@ class FTS5DB:
           )
           yield node
 
-    finally:
-      cursor.close()
-
   def save(self, node_id: str, segments: list[Segment], metadata: dict):
     encoded_segments, tokens = self._encode_segments(segments)
     if len(encoded_segments) == 0:
       return
 
-    try:
-      document = " ".join(tokens)
-      cursor = self._conn.cursor()
-      cursor.execute("BEGIN TRANSACTION")
-      cursor.execute("INSERT INTO contents (content) VALUES (?)", (document,))
-      content_id = cursor.lastrowid
-      type = metadata.get("type", None)
-      metadata_json = json.dumps(metadata)
-      cursor.execute(
-        "INSERT INTO nodes (node_id, type, metadata, segments, content_id) VALUES (?, ?, ?, ?, ?)",
-        (node_id, type, metadata_json, encoded_segments, content_id),
-      )
-      self._conn.commit()
-      cursor.close()
+    with self._db.connect() as (cursor, conn):
+      try:
+        document = " ".join(tokens)
+        cursor.execute("BEGIN TRANSACTION")
+        cursor.execute("INSERT INTO contents (content) VALUES (?)", (document,))
+        content_id = cursor.lastrowid
+        type = metadata.get("type", None)
+        metadata_json = json.dumps(metadata)
+        cursor.execute(
+          "INSERT INTO nodes (node_id, type, metadata, segments, content_id) VALUES (?, ?, ?, ?, ?)",
+          (node_id, type, metadata_json, encoded_segments, content_id),
+        )
+        conn.commit()
 
-    except Exception as e:
-      self._conn.rollback()
-      raise e
+      except Exception as e:
+        conn.rollback()
+        raise e
 
   def remove(self, node_id: str):
-    cursor = self._conn.cursor()
-    try:
-      cursor.execute("SELECT content_id FROM nodes WHERE node_id = ?", (node_id,))
-      row = cursor.fetchone()
-      if row is not None:
-        cursor.execute("BEGIN TRANSACTION")
-        content_id = row[0]
-        cursor.execute("DELETE FROM contents WHERE rowid = ?", (content_id,))
-        cursor.execute("DELETE FROM nodes WHERE node_id = ?", (node_id,))
-        self._conn.commit()
-      cursor.close()
+    with self._db.connect() as (cursor, conn):
+      try:
+        cursor.execute("SELECT content_id FROM nodes WHERE node_id = ?", (node_id,))
+        row = cursor.fetchone()
+        if row is not None:
+          cursor.execute("BEGIN TRANSACTION")
+          content_id = row[0]
+          cursor.execute("DELETE FROM contents WHERE rowid = ?", (content_id,))
+          cursor.execute("DELETE FROM nodes WHERE node_id = ?", (node_id,))
+          conn.commit()
 
-    except Exception as e:
-      self._conn.rollback()
-      raise e
-
-    finally:
-      cursor.close()
+      except Exception as e:
+        conn.rollback()
+        raise e
 
   def _analysis_segments(self, query_tokens_set: set[str], segments: list[_Segment]) -> tuple[list[IndexSegment], float]:
     query_tokens_len = len(query_tokens_set)
@@ -235,3 +193,27 @@ class FTS5DB:
       for i in range(len(weights)):
         weights[i] /= sum_weight
     return weights
+
+def _create_tables(cursor: Cursor):
+  # unicode61 remove_diacritics 2 means: diacritics are correctly removed from all Latin characters.
+  # to see: https://www.sqlite.org/fts5.html
+  cursor.execute("""
+    CREATE VIRTUAL TABLE contents USING fts5(
+      content,
+      tokenize = "unicode61 remove_diacritics 2"
+    );
+  """)
+  cursor.execute("""
+    CREATE TABLE nodes (
+      node_id TEXT PRIMARY KEY,
+      type TEXT,
+      metadata TEXT NOT NULL,
+      segments TEXT NOT NULL,
+      content_id INTEGER NOT NULL
+    )
+  """)
+  cursor.execute("""
+    CREATE INDEX idx_nodes ON nodes (content_id)
+  """)
+
+register_table_creators("fts5", _create_tables)

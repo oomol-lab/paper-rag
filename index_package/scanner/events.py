@@ -1,4 +1,4 @@
-from sqlite3 import Connection, Cursor
+from sqlite3 import Cursor
 from enum import Enum
 from typing import Generator
 
@@ -11,18 +11,14 @@ class EventTarget(Enum):
   File = 0
   Directory = 1
 
-def scan_events(conn: Connection) -> Generator[int, None, None]:
-  cursor = conn.cursor()
-  try:
-    cursor.execute("SELECT id FROM events ORDER BY id")
-    while True:
-      rows = cursor.fetchmany(size=100)
-      if len(rows) == 0:
-        break
-      for row in rows:
-        yield row[0]
-  finally:
-    cursor.close()
+def scan_events(cursor: Cursor) -> Generator[int, None, None]:
+  cursor.execute("SELECT id FROM events ORDER BY id")
+  while True:
+    rows = cursor.fetchmany(size=100)
+    if len(rows) == 0:
+      break
+    for row in rows:
+      yield row[0]
 
 def record_added_event(cursor: Cursor, target: EventTarget, path: str, scope: str, mtime: float):
   cursor.execute(

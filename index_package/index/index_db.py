@@ -1,4 +1,3 @@
-from typing import Callable
 from .types import IndexNode, IndexNodeMatching
 from .fts5_db import FTS5DB
 from .vector_db import VectorDB, Embedding
@@ -8,9 +7,6 @@ class IndexDB:
   def __init__(self, fts5_db: FTS5DB, vector_db: VectorDB):
     self._fts5_db: FTS5DB = fts5_db
     self._vector_db: VectorDB = vector_db
-
-  def close(self):
-    self._fts5_db.close()
 
   def save(self, node_id: str, segments: list[Segment], metadata: dict):
     self._fts5_db.save(node_id, segments, metadata)

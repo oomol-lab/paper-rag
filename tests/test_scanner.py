@@ -33,10 +33,12 @@ class TestScanner(unittest.TestCase):
     path_list: list[str] = []
 
     for event_id in scanner.scan():
-      with parser.parse(event_id) as event:
+      event = parser.parse(event_id)
+      try:
         path_list.append(event.path)
+      finally:
+        event.close()
 
-    parser.close()
     path_list.sort()
     self.assertListEqual(path_list, [
       "/",
@@ -101,15 +103,17 @@ class TestScanner(unittest.TestCase):
     updated_path_list: list[tuple[str, EventTarget]] = []
 
     for event_id in scanner.scan():
-      with parser.parse(event_id) as event:
+      event = parser.parse(event_id)
+      try:
         if event.kind == EventKind.Added:
           added_path_list.append((event.path, event.target))
         elif event.kind == EventKind.Removed:
           removed_path_list.append((event.path, event.target))
         elif event.kind == EventKind.Updated:
           updated_path_list.append((event.path, event.target))
+      finally:
+        event.close()
 
-    parser.close()
     for path_list in [added_path_list, removed_path_list, updated_path_list]:
       path_list.sort(key=lambda x: x[0])
 
