@@ -132,15 +132,19 @@ const Keywords: React.FC<{}> = () => {
   );
   return (
     <div className={styles["keywords-bar"]}>
-      <label>关键词：</label>
-      {keywords.map((keyword, index) => (
-        <Tag.CheckableTag
-          key={`${index}`}
-          checked={keyword.checked}
-          onChange={checked => onChangeTag(keyword.name, checked)} >
-          {keyword.name}
-        </Tag.CheckableTag>
-      ))}
+      <div className={styles["keywords-title"]}>
+        关键词：
+      </div>
+      <div className={styles["keywords"]}>
+        {keywords.map((keyword, index) => (
+          <Tag.CheckableTag
+            key={`${index}`}
+            checked={keyword.checked}
+            onChange={checked => onChangeTag(keyword.name, checked)} >
+            {keyword.name}
+          </Tag.CheckableTag>
+        ))}
+      </div>
     </div>
   );
 };
