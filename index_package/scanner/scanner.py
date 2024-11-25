@@ -7,7 +7,7 @@ from sqlite3 import Cursor
 from sqlite3_pool import register_table_creators, SQLite3Pool
 from .scope import Scope, ScopeManager
 from .events import scan_events, record_added_event, record_updated_event, record_removed_event
-from .event_parser import EventTarget, EventParser
+from .event_parser import Event, EventTarget, EventParser
 from ..utils import assert_continue
 
 @dataclass
@@ -35,10 +35,8 @@ class Scanner:
       path=db_path,
     )
     self._db: SQLite3Pool = db.assert_format("scanner")
+    self._event_parser: EventParser = EventParser(self._db)
     self._scope_manager: ScopeManager = ScopeManager(self._db)
-
-  def event_parser(self) -> EventParser:
-    return EventParser(self._db)
 
   @property
   def scope(self) -> Scope:
@@ -61,6 +59,9 @@ class Scanner:
         event_ids.append(event_id)
 
       return event_ids
+
+  def parse_event(self, event_id: int) -> Event:
+    return self._event_parser.parse(event_id)
 
   def commit_sources(self, sources: dict[str, str]):
     self._scope_manager.commit_sources(sources)

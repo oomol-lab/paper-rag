@@ -20,6 +20,10 @@ def launch():
   app = Flask(__name__)
   app_dir = os.path.join(__file__, "..", "..", "data")
   app_dir = os.path.abspath(app_dir)
+
+  if not os.path.exists(app_dir):
+    os.makedirs(app_dir)
+
   sources = Sources(os.path.join(app_dir, "app.sqlite3"))
   service = ServiceRef(
     app=app,
