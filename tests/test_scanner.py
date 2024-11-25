@@ -29,11 +29,10 @@ class TestScanner(unittest.TestCase):
     self._set_file(scan_path, "./universe/sun/sun2", "this is sun1")
     self._set_file(scan_path, "./universe/moon/moon1", "this is moon1")
 
-    parser = scanner.event_parser()
     path_list: list[str] = []
 
     for event_id in scanner.scan():
-      event = parser.parse(event_id)
+      event = scanner.parse_event(event_id)
       try:
         path_list.append(event.path)
       finally:
@@ -97,13 +96,12 @@ class TestScanner(unittest.TestCase):
     list[tuple[str, EventTarget]],
     list[tuple[str, EventTarget]],
   ]:
-    parser = scanner.event_parser()
     added_path_list: list[tuple[str, EventTarget]] = []
     removed_path_list: list[tuple[str, EventTarget]] = []
     updated_path_list: list[tuple[str, EventTarget]] = []
 
     for event_id in scanner.scan():
-      event = parser.parse(event_id)
+      event = scanner.parse_event(event_id)
       try:
         if event.kind == EventKind.Added:
           added_path_list.append((event.path, event.target))
