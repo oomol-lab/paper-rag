@@ -97,6 +97,8 @@ class VectorDB:
         node_segments.append(IndexSegment(
           start=start,
           end=end,
+          fts5_rank=0.0,
+          vector_distance=distance,
           matched_tokens=[],
         ))
         if node_metadata is None:
