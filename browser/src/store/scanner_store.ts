@@ -172,5 +172,5 @@ export class SourceStore {
 }
 
 function standardize(content: string): string {
-  return content.replace(/[\s\n\r\x00-\x1F\x7F]+/g, "").trim();
+  return content.trim();
 }

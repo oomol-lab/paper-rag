@@ -12,15 +12,29 @@ export type TextProps = React.HTMLAttributes<HTMLDivElement> & {
 enum SegmentKind {
   Background = 0,
   Chunk = 1,
-  Highlight = 2,
+  HighlightChunk = 2,
+  Keyword = 3,
+  HighlightKeyword = 4,
 }
 
 export const Text: React.FC<TextProps> = ({ content, segments, ...rest }) => {
   const dyeing = new Dyeing(content);
-  for (const { start, end, highlights } of segments) {
-    dyeing.dye(start, end - start, SegmentKind.Chunk, false);
+
+  for (const { start, end, main, highlights } of segments) {
+    let chunkColor: SegmentKind;
+    let keywordColor: SegmentKind;
+
+    if (main) {
+      chunkColor = SegmentKind.HighlightChunk;
+      keywordColor = SegmentKind.HighlightKeyword;
+    } else {
+      chunkColor = SegmentKind.Chunk;
+      keywordColor = SegmentKind.Keyword;
+    }
+    dyeing.dye(start, end - start, chunkColor, false);
+
     for (const [hStart, hEnd] of highlights) {
-      dyeing.dye(start + hStart, hEnd - hStart, SegmentKind.Highlight, true);
+      dyeing.dye(start + hStart, hEnd - hStart, keywordColor, true);
     }
   }
   return (
@@ -63,17 +77,36 @@ const TextLine: React.FC<TextLineProps> = ({ fragments }) => (
           return (
             <span
               key={`${i}`}
-              className={styles.chunk}>
+              className={styles.chunk} >
               {fragment.content}
             </span>
           );
         }
-        case SegmentKind.Highlight: {
+        case SegmentKind.HighlightChunk: {
+          return (
+            <span
+              key={`${i}`}
+              className={styles["chunk-highlight"]} >
+              {fragment.content}
+            </span>
+          );
+        }
+        case SegmentKind.Keyword: {
           return (
             <HighlightTag
               key={`${i}`}
               keyword={fragment.keyword!}
               className={styles.chunk}>
+              {fragment.content}
+            </HighlightTag>
+          );
+        }
+        case SegmentKind.HighlightKeyword: {
+          return (
+            <HighlightTag
+              key={`${i}`}
+              keyword={fragment.keyword!}
+              className={styles["chunk-highlight"]} >
               {fragment.content}
             </HighlightTag>
           );

@@ -21,6 +21,8 @@ class IndexNode:
 class IndexSegment:
   start: int
   end: int
+  fts5_rank: float
+  vector_distance: float
   matched_tokens: list[str]
 
 @dataclass

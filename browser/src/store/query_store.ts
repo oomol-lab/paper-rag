@@ -47,6 +47,7 @@ export type PDFPageItem = {
 export type HighlightSegment = {
   readonly start: number;
   readonly end: number;
+  readonly main: boolean;
   readonly highlights: readonly [number, number][];
 };
 

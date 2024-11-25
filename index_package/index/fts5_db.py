@@ -53,7 +53,7 @@ class FTS5DB:
           metadata: dict = json.loads(metadata_json)
           type = metadata.get("type", "undefined")
           segments, rank = self._analysis_segments(
-            query_tokens_set,
+            query_tokens_set=query_tokens_set,
             segments=self._decode_segment(content, encoded_segments),
           )
           node = IndexNode(
@@ -106,7 +106,11 @@ class FTS5DB:
         conn.rollback()
         raise e
 
-  def _analysis_segments(self, query_tokens_set: set[str], segments: list[_Segment]) -> tuple[list[IndexSegment], float]:
+  def _analysis_segments(
+      self,
+      query_tokens_set: set[str],
+      segments: list[_Segment]) -> tuple[list[IndexSegment], float]:
+
     query_tokens_len = len(query_tokens_set)
     target_segments: list[IndexSegment] = []
     match_count_list: list[bool] = [False for _ in range(query_tokens_len)]
@@ -124,6 +128,8 @@ class FTS5DB:
         target_segments.append(IndexSegment(
           start=start,
           end=end,
+          fts5_rank=-len(matched_tokens),
+          vector_distance=0.0,
           matched_tokens=matched_tokens
         ))
 
