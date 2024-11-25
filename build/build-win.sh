@@ -24,7 +24,6 @@ cp -r server ${DIST}/server
 cp -r build/start.bat ${DIST}/start.bat
 
 mkdir -p ${DIST}/data
-cp -r data/.keep ${DIST}/data/.keep
 
 cd $SCRIPT_DIR/../dist
 zip -r ./${APP_NAME}-win-amd64.zip ${APP_NAME}
