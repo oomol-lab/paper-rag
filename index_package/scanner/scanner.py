@@ -100,6 +100,9 @@ class Scanner:
 
     if os.path.exists(abs_path):
       is_dir = os.path.isdir(abs_path)
+      if is_dir and self._ignore_dir(abs_path):
+        return None
+
       mtime = os.path.getmtime(abs_path)
       children: Optional[list[str]] = None
 
@@ -116,7 +119,7 @@ class Scanner:
       new_file = _File(scope, relative_path, mtime, children)
 
     elif old_file is None:
-      return
+      return None
 
     if not file_never_change:
       try:
@@ -135,6 +138,10 @@ class Scanner:
       return None
 
     return new_file.children
+
+  def _ignore_dir(self, path: str) -> bool:
+    _, file_extension = os.path.splitext(path)
+    return file_extension.lower() == ".epub"
 
   def _commit_file_self_events(
     self,

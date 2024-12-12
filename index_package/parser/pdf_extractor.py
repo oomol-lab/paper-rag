@@ -57,16 +57,23 @@ class PdfExtractor:
 
   def extract_page(self, page_hash: str):
     global _PDF_EXT, _SNAPSHOT_EXT, _ANNOTATION_EXT
-    annotations: list[Annotation]
+    annotations: list[Annotation] = []
     snapshot: str = ""
 
     with pdfplumber.open(os.path.join(self._pages_path, f"{page_hash}.{_PDF_EXT}")) as pdf_file:
       if len(pdf_file.pages) == 0:
         return
       page = pdf_file.pages[0]
-      annotations = self._extract_annotations(page)
-      snapshot = page.extract_text_simple()
-      snapshot = self._standardize_text(snapshot)
+      # TODO: 将错误反馈到前端，而不是仅仅在控制台报错
+      try:
+        annotations = self._extract_annotations(page)
+      except Exception as e:
+        print(f"Failed to extract annotations from {page_hash}: {e}")
+      try:
+        snapshot = page.extract_text_simple()
+        snapshot = self._standardize_text(snapshot)
+      except Exception as e:
+        print(f"Failed to extract snapshot from {page_hash}: {e}")
 
       for annotation in annotations:
         quad_points = annotation.quad_points
