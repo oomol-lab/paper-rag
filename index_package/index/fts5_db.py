@@ -56,16 +56,18 @@ class FTS5DB:
             query_tokens_set=query_tokens_set,
             segments=self._decode_segment(content, encoded_segments),
           )
-          node = IndexNode(
-            id=node_id,
-            type=type,
-            matching=matching,
-            metadata=metadata,
-            fts5_rank=rank,
-            vector_distance=0.0,
-            segments=segments,
-          )
-          yield node
+          # fts5 database maybe matches no keywords
+          if len(segments) > 0:
+            node = IndexNode(
+              id=node_id,
+              type=type,
+              matching=matching,
+              metadata=metadata,
+              fts5_rank=rank,
+              vector_distance=0.0,
+              segments=segments,
+            )
+            yield node
 
   def save(self, node_id: str, segments: list[Segment], metadata: dict):
     encoded_segments, tokens = self._encode_segments(segments)
